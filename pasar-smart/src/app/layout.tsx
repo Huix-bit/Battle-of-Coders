@@ -25,7 +25,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ms" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
+    <html lang="ms" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`} suppressHydrationWarning>
       <body className="min-h-full">
         <Shell>{children}</Shell>
       </body>
