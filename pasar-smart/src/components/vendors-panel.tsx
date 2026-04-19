@@ -19,7 +19,7 @@ export type VendorRow = {
 };
 
 function SubmitLabel({ pending, idle }: { pending: boolean; idle: string }) {
-  return <>{pending ? "Menyimpan…" : idle}</>;
+  return <>{pending ? "Saving…" : idle}</>;
 }
 
 export function VendorsPanel({ vendors }: { vendors: VendorRow[] }) {
@@ -29,20 +29,20 @@ export function VendorsPanel({ vendors }: { vendors: VendorRow[] }) {
   return (
     <div className="space-y-10">
       <section className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-6 shadow-sm">
-        <h2 className="text-lg font-semibold text-[var(--accent-strong)]">Tambah penjaja baharu</h2>
+        <h2 className="text-lg font-semibold text-[var(--accent-strong)]">Add new vendor</h2>
         <p className="mt-1 text-sm text-[var(--muted)]">
-          Rekod peniaga di pasar malam — yuran petak dalam Ringgit Malaysia (bukan negatif).
+          Register a night market trader — daily stall fee in Ringgit Malaysia (non-negative).
         </p>
         <form action={createAction} className="mt-4 grid gap-3 sm:grid-cols-2">
-          <Field label="Nama perniagaan" name="namaPerniagaan" required />
-          <Field label="Nama panggilan" name="namaPanggilan" />
-          <Field label="No. telefon" name="noTelefon" placeholder="Contoh: 012-3456789" />
-          <Field label="E-mel" name="email" type="email" />
+          <Field label="Business name" name="namaPerniagaan" required />
+          <Field label="Nickname" name="namaPanggilan" />
+          <Field label="Phone number" name="noTelefon" placeholder="e.g. 012-3456789" />
+          <Field label="Email" name="email" type="email" />
           <div className="sm:col-span-2">
-            <Field label="Jenis jualan" name="jenisJualan" required placeholder="Contoh: kuih, air balang" />
+            <Field label="Type of goods" name="jenisJualan" required placeholder="e.g. pastries, drinks" />
           </div>
           <Field
-            label="Yuran petak harian (RM)"
+            label="Daily stall fee (RM)"
             name="yuranRm"
             required
             placeholder="12.50"
@@ -53,7 +53,7 @@ export function VendorsPanel({ vendors }: { vendors: VendorRow[] }) {
               disabled={createPending}
               className="w-full rounded-xl bg-[var(--accent)] px-4 py-2.5 text-sm font-medium text-white hover:opacity-95 disabled:opacity-60"
             >
-              <SubmitLabel pending={createPending} idle="Simpan penjaja" />
+              <SubmitLabel pending={createPending} idle="Save vendor" />
             </button>
           </div>
           <div className="sm:col-span-2">
@@ -63,13 +63,13 @@ export function VendorsPanel({ vendors }: { vendors: VendorRow[] }) {
       </section>
 
       <section>
-        <h2 className="text-lg font-semibold text-[var(--accent-strong)]">Senarai penjaja</h2>
-        <p className="mt-1 text-sm text-[var(--muted)]">Kemas kini status mengikut alur: Draf → Aktif / Digantung.</p>
+        <h2 className="text-lg font-semibold text-[var(--accent-strong)]">Vendor list</h2>
+        <p className="mt-1 text-sm text-[var(--muted)]">Update status along the flow: Draft → Active / Suspended.</p>
         <FormMessage message={editState.error} />
         <ul className="mt-4 space-y-3">
           {vendors.length === 0 ? (
             <li className="rounded-xl border border-dashed border-[var(--border)] p-6 text-center text-sm text-[var(--muted)]">
-              Tiada penjaja lagi — tambah rekod di atas.
+              No vendors yet — add a record above.
             </li>
           ) : (
             vendors.map((v) => (
@@ -84,15 +84,15 @@ export function VendorsPanel({ vendors }: { vendors: VendorRow[] }) {
                   </summary>
                   <form action={editAction} className="mt-4 grid gap-3 border-t border-[var(--border)] pt-4 sm:grid-cols-2">
                     <input type="hidden" name="id" value={v.id} />
-                    <Field label="Nama perniagaan" name="namaPerniagaan" defaultValue={v.namaPerniagaan} required />
-                    <Field label="Nama panggilan" name="namaPanggilan" defaultValue={v.namaPanggilan ?? ""} />
-                    <Field label="No. telefon" name="noTelefon" defaultValue={v.noTelefon ?? ""} />
-                    <Field label="E-mel" name="email" type="email" defaultValue={v.email ?? ""} />
+                    <Field label="Business name" name="namaPerniagaan" defaultValue={v.namaPerniagaan} required />
+                    <Field label="Nickname" name="namaPanggilan" defaultValue={v.namaPanggilan ?? ""} />
+                    <Field label="Phone number" name="noTelefon" defaultValue={v.noTelefon ?? ""} />
+                    <Field label="Email" name="email" type="email" defaultValue={v.email ?? ""} />
                     <div className="sm:col-span-2">
-                      <Field label="Jenis jualan" name="jenisJualan" defaultValue={v.jenisJualan} required />
+                      <Field label="Type of goods" name="jenisJualan" defaultValue={v.jenisJualan} required />
                     </div>
                     <Field
-                      label="Yuran petak harian (RM)"
+                      label="Daily stall fee (RM)"
                       name="yuranRm"
                       required
                       defaultValue={senToRmLabel(v.yuranHarianSen)}
@@ -117,7 +117,7 @@ export function VendorsPanel({ vendors }: { vendors: VendorRow[] }) {
                         disabled={editPending}
                         className="rounded-xl bg-[var(--accent)] px-4 py-2.5 text-sm font-medium text-white hover:opacity-95 disabled:opacity-60"
                       >
-                        <SubmitLabel pending={editPending} idle="Kemas kini" />
+                        <SubmitLabel pending={editPending} idle="Update" />
                       </button>
                     </div>
                   </form>
@@ -126,9 +126,9 @@ export function VendorsPanel({ vendors }: { vendors: VendorRow[] }) {
                   <input type="hidden" name="id" value={v.id} />
                   <button
                     type="submit"
-                    className="text-xs text-red-700 underline-offset-2 hover:underline dark:text-red-300"
+                    className="text-xs text-[#E8342A]/80 underline-offset-2 hover:text-[#E8342A] hover:underline"
                   >
-                    Padam rekod
+                    Delete record
                   </button>
                 </form>
               </li>

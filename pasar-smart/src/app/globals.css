@@ -1,42 +1,43 @@
 @import "tailwindcss";
 
+/* ─────────────────────────────────────────────
+   PASAR-SMART  •  Deep Indigo Colour System
+───────────────────────────────────────────── */
 :root {
-  --background: #fffaf3;
-  --foreground: #1c1917;
-  --muted: #78716c;
-  --border: #e7e5e4;
-  --accent: #c2410c;
-  --accent-strong: #9a3412;
-  --header: #fff7ed;
-  --card: #ffffff;
-  --surface: #fffbeb;
-  --input: #ffffff;
-  --bg: var(--background);
-  --text: var(--foreground);
+  /* ── Backgrounds ── */
+  --bg:          #1A1040;   /* Deep Indigo   — main app background    */
+  --background:  #1A1040;
+  --abyss:       #120B30;   /* Abyss Indigo  — header, inputs, nav    */
+  --lifted:      #271952;   /* Lifted Indigo — cards, containers       */
+  --raised:      #341F6A;   /* Raised Indigo — hover / selected state  */
+
+  /* ── Text ── */
+  --foreground:  #F5F2FF;   /* Primary text  — headlines               */
+  --text:        #F5F2FF;
+  --secondary:   #C8C3F0;   /* Secondary     — descriptions, labels    */
+  --muted:       #7F77DD;   /* Muted         — hints, placeholders     */
+
+  /* ── Accent & Action ── */
+  --accent:        #F5A623; /* Pasar Amber   — CTA, prices, highlights */
+  --accent-strong: #F5A623;
+  --error:         #E8342A; /* Chilli Red    — alerts, promo badges    */
+  --success:       #1D9E75; /* Pandan Green  — open, halal, success    */
+  --lavender:      #AFA9EC; /* Lavender      — borders, dividers       */
+
+  /* ── Mapped component tokens ── */
+  --header:        #120B30;                    /* Abyss Indigo             */
+  --card:          #271952;                    /* Lifted Indigo            */
+  --surface:       #271952;                    /* Lifted Indigo            */
+  --input:         #120B30;                    /* Abyss Indigo             */
+  --border:        rgba(175,169,236,0.35);     /* Emphasis divider (35%)   */
+  --border-subtle: rgba(175,169,236,0.15);     /* Subtle divider   (15%)   */
 }
 
 @theme inline {
   --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-foreground:  var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0c0a09;
-    --foreground: #fafaf9;
-    --muted: #a8a29e;
-    --border: #292524;
-    --accent: #ea580c;
-    --accent-strong: #fb923c;
-    --header: #1c1917;
-    --card: #1c1917;
-    --surface: #292524;
-    --input: #0c0a09;
-    --bg: var(--background);
-    --text: var(--foreground);
-  }
 }
 
 body {
@@ -44,3 +45,9 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans), system-ui, sans-serif;
 }
+
+/* Smooth scrollbar tinting for the dark theme */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--abyss); }
+::-webkit-scrollbar-thumb { background: var(--raised); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--lavender); }

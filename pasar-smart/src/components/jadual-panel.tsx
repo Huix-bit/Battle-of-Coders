@@ -41,7 +41,7 @@ export type AssignmentRow = {
 export type VendorOption = { id: string; namaPerniagaan: string };
 
 function SubmitLabel({ pending, idle }: { pending: boolean; idle: string }) {
-  return <>{pending ? "Menyimpan…" : idle}</>;
+  return <>{pending ? "Saving…" : idle}</>;
 }
 
 export function JadualPanel(props: {
@@ -67,15 +67,15 @@ export function JadualPanel(props: {
   return (
     <div className="space-y-12">
       <section className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-6 shadow-sm">
-        <h2 className="text-lg font-semibold text-[var(--accent-strong)]">Tapak pasar mengikut daerah</h2>
+        <h2 className="text-lg font-semibold text-[var(--accent-strong)]">Market sites by district</h2>
         <p className="mt-1 text-sm text-[var(--muted)]">
-          Daerah Melaka: Bukit Beruang, Ayer Keroh, Alor Gajah, Jasin & Melaka Tengah — kemas kini status tapak.
+          Melaka districts: Bukit Beruang, Ayer Keroh, Alor Gajah, Jasin &amp; Melaka Tengah — update site status.
         </p>
 
         <form action={mCreateAction} className="mt-4 grid gap-3 sm:grid-cols-2">
-          <Field label="Nama pasar / lokasi" name="namaPasar" required placeholder="Contoh: Pasar Malam Taman X" />
+          <Field label="Market / location name" name="namaPasar" required placeholder="e.g. Night Market Taman X" />
           <label className="flex flex-col gap-1 text-sm">
-            <span className="text-[var(--muted)]">Daerah</span>
+            <span className="text-[var(--muted)]">District</span>
             <select name="daerah" required className="rounded-lg border border-[var(--border)] bg-[var(--input)] px-3 py-2">
               {DAERAH_KEYS.map((d) => (
                 <option key={d} value={d}>
@@ -84,15 +84,15 @@ export function JadualPanel(props: {
               ))}
             </select>
           </label>
-          <Field label="Alamat ringkas" name="alamat" placeholder="Jalan / taman" />
-          <Field label="Hari operasi" name="hariOperasi" placeholder="Contoh: Jumaat & Sabtu" />
+          <Field label="Short address" name="alamat" placeholder="Street / neighbourhood" />
+          <Field label="Operating days" name="hariOperasi" placeholder="e.g. Friday & Saturday" />
           <div className="sm:col-span-2 flex items-end">
             <button
               type="submit"
               disabled={mCreatePending}
               className="rounded-xl bg-[var(--accent)] px-4 py-2.5 text-sm font-medium text-white hover:opacity-95 disabled:opacity-60"
             >
-              <SubmitLabel pending={mCreatePending} idle="Tambah tapak" />
+              <SubmitLabel pending={mCreatePending} idle="Add site" />
             </button>
           </div>
           <div className="sm:col-span-2">
@@ -104,7 +104,7 @@ export function JadualPanel(props: {
         <ul className="mt-6 space-y-3">
           {markets.length === 0 ? (
             <li className="rounded-xl border border-dashed border-[var(--border)] p-4 text-sm text-[var(--muted)]">
-              Tiada tapak — tambah rekod di atas.
+              No sites yet — add a record above.
             </li>
           ) : (
             markets.map((m) => (
@@ -119,9 +119,9 @@ export function JadualPanel(props: {
                   </summary>
                   <form action={mEditAction} className="mt-3 grid gap-3 sm:grid-cols-2">
                     <input type="hidden" name="id" value={m.id} />
-                    <Field label="Nama pasar" name="namaPasar" defaultValue={m.namaPasar} required />
+                    <Field label="Market name" name="namaPasar" defaultValue={m.namaPasar} required />
                     <label className="flex flex-col gap-1 text-sm">
-                      <span className="text-[var(--muted)]">Daerah</span>
+                      <span className="text-[var(--muted)]">District</span>
                       <select
                         name="daerah"
                         defaultValue={m.daerah}
@@ -134,10 +134,10 @@ export function JadualPanel(props: {
                         ))}
                       </select>
                     </label>
-                    <Field label="Alamat" name="alamat" defaultValue={m.alamat ?? ""} />
-                    <Field label="Hari operasi" name="hariOperasi" defaultValue={m.hariOperasi ?? ""} />
+                    <Field label="Address" name="alamat" defaultValue={m.alamat ?? ""} />
+                    <Field label="Operating days" name="hariOperasi" defaultValue={m.hariOperasi ?? ""} />
                     <label className="flex flex-col gap-1 text-sm">
-                      <span className="text-[var(--muted)]">Status tapak</span>
+                      <span className="text-[var(--muted)]">Site status</span>
                       <select
                         name="status"
                         defaultValue={m.status}
@@ -156,15 +156,15 @@ export function JadualPanel(props: {
                         disabled={mEditPending}
                         className="w-full rounded-xl bg-[var(--accent)] px-4 py-2.5 text-sm font-medium text-white disabled:opacity-60"
                       >
-                        <SubmitLabel pending={mEditPending} idle="Simpan tapak" />
+                        <SubmitLabel pending={mEditPending} idle="Save site" />
                       </button>
                     </div>
                   </form>
                 </details>
                 <form action={deleteMarket} className="mt-2 flex justify-end">
                   <input type="hidden" name="id" value={m.id} />
-                  <button type="submit" className="text-xs text-red-700 underline hover:underline dark:text-red-300">
-                    Padam tapak
+                  <button type="submit" className="text-xs text-[#E8342A]/80 underline hover:text-[#E8342A]">
+                    Delete site
                   </button>
                 </form>
               </li>
@@ -174,20 +174,20 @@ export function JadualPanel(props: {
       </section>
 
       <section className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-6 shadow-sm">
-        <h2 className="text-lg font-semibold text-[var(--accent-strong)]">Penugasan penjaja ke tapak</h2>
+        <h2 className="text-lg font-semibold text-[var(--accent-strong)]">Assign vendors to sites</h2>
         <p className="mt-1 text-sm text-[var(--muted)]">
-          Jadualkan petak — tarikh mula tidak boleh pada hari yang telah berlalu. Status mengikut alur operasi.
+          Schedule a stall — start date cannot be in the past. Status follows the operational flow.
         </p>
 
         <form action={aCreateAction} className="mt-4 grid gap-3 sm:grid-cols-2">
           <label className="flex flex-col gap-1 text-sm sm:col-span-2">
-            <span className="text-[var(--muted)]">Penjaja</span>
+            <span className="text-[var(--muted)]">Vendor</span>
             <select
               name="vendorId"
               required
               className="rounded-lg border border-[var(--border)] bg-[var(--input)] px-3 py-2"
             >
-              <option value="">— pilih —</option>
+              <option value="">— select —</option>
               {vendors.map((v) => (
                 <option key={v.id} value={v.id}>
                   {v.namaPerniagaan}
@@ -196,13 +196,13 @@ export function JadualPanel(props: {
             </select>
           </label>
           <label className="flex flex-col gap-1 text-sm sm:col-span-2">
-            <span className="text-[var(--muted)]">Tapak pasar</span>
+            <span className="text-[var(--muted)]">Market site</span>
             <select
               name="marketId"
               required
               className="rounded-lg border border-[var(--border)] bg-[var(--input)] px-3 py-2"
             >
-              <option value="">— pilih —</option>
+              <option value="">— select —</option>
               {markets.map((m) => (
                 <option key={m.id} value={m.id}>
                   {m.namaPasar} ({DAERAH_LABEL[m.daerah as DaerahKey]})
@@ -211,7 +211,7 @@ export function JadualPanel(props: {
             </select>
           </label>
           <label className="flex flex-col gap-1 text-sm">
-            <span className="text-[var(--muted)]">Tarikh & masa mula</span>
+            <span className="text-[var(--muted)]">Start date &amp; time</span>
             <input
               type="datetime-local"
               name="tarikhMula"
@@ -221,22 +221,22 @@ export function JadualPanel(props: {
             />
           </label>
           <label className="flex flex-col gap-1 text-sm">
-            <span className="text-[var(--muted)]">Tarikh tamat (pilihan)</span>
+            <span className="text-[var(--muted)]">End date (optional)</span>
             <input
               type="datetime-local"
               name="tarikhTamat"
               className="rounded-lg border border-[var(--border)] bg-[var(--input)] px-3 py-2"
             />
           </label>
-          <Field label="Petak / no. gerai" name="petakStall" placeholder="Contoh: A-12" />
-          <Field label="Catatan" name="catatan" placeholder="Nota ringkas" />
+          <Field label="Stall / booth no." name="petakStall" placeholder="e.g. A-12" />
+          <Field label="Notes" name="catatan" placeholder="Short note" />
           <div className="sm:col-span-2 flex items-end">
             <button
               type="submit"
               disabled={aCreatePending || vendors.length === 0 || markets.length === 0}
               className="rounded-xl bg-[var(--accent)] px-4 py-2.5 text-sm font-medium text-white hover:opacity-95 disabled:opacity-60"
             >
-              <SubmitLabel pending={aCreatePending} idle="Jadualkan penugasan" />
+              <SubmitLabel pending={aCreatePending} idle="Schedule assignment" />
             </button>
           </div>
           <div className="sm:col-span-2">
@@ -248,7 +248,7 @@ export function JadualPanel(props: {
         <ul className="mt-6 space-y-3">
           {assignments.length === 0 ? (
             <li className="rounded-xl border border-dashed border-[var(--border)] p-4 text-sm text-[var(--muted)]">
-              Tiada penugasan — jadualkan penjaja ke tapak di atas.
+              No assignments — schedule a vendor to a site above.
             </li>
           ) : (
             assignments.map((a) => (
@@ -263,7 +263,7 @@ export function JadualPanel(props: {
                   <form action={aEditAction} className="mt-3 grid gap-3 sm:grid-cols-2">
                     <input type="hidden" name="id" value={a.id} />
                     <label className="flex flex-col gap-1 text-sm sm:col-span-2">
-                      <span className="text-[var(--muted)]">Penjaja</span>
+                      <span className="text-[var(--muted)]">Vendor</span>
                       <select
                         name="vendorId"
                         defaultValue={a.vendorId}
@@ -277,7 +277,7 @@ export function JadualPanel(props: {
                       </select>
                     </label>
                     <label className="flex flex-col gap-1 text-sm sm:col-span-2">
-                      <span className="text-[var(--muted)]">Tapak</span>
+                      <span className="text-[var(--muted)]">Site</span>
                       <select
                         name="marketId"
                         defaultValue={a.marketId}
@@ -291,7 +291,7 @@ export function JadualPanel(props: {
                       </select>
                     </label>
                     <label className="flex flex-col gap-1 text-sm">
-                      <span className="text-[var(--muted)]">Tarikh mula</span>
+                      <span className="text-[var(--muted)]">Start date</span>
                       <input
                         type="datetime-local"
                         name="tarikhMula"
@@ -301,7 +301,7 @@ export function JadualPanel(props: {
                       />
                     </label>
                     <label className="flex flex-col gap-1 text-sm">
-                      <span className="text-[var(--muted)]">Tarikh tamat</span>
+                      <span className="text-[var(--muted)]">End date</span>
                       <input
                         type="datetime-local"
                         name="tarikhTamat"
@@ -311,7 +311,7 @@ export function JadualPanel(props: {
                         className="rounded-lg border border-[var(--border)] bg-[var(--input)] px-3 py-2"
                       />
                     </label>
-                    <Field label="Petak" name="petakStall" defaultValue={a.petakStall ?? ""} />
+                    <Field label="Stall no." name="petakStall" defaultValue={a.petakStall ?? ""} />
                     <label className="flex flex-col gap-1 text-sm">
                       <span className="text-[var(--muted)]">Status</span>
                       <select
@@ -327,7 +327,7 @@ export function JadualPanel(props: {
                       </select>
                     </label>
                     <div className="sm:col-span-2">
-                      <Field label="Catatan" name="catatan" defaultValue={a.catatan ?? ""} />
+                      <Field label="Notes" name="catatan" defaultValue={a.catatan ?? ""} />
                     </div>
                     <div className="sm:col-span-2 flex items-end">
                       <button
@@ -335,15 +335,15 @@ export function JadualPanel(props: {
                         disabled={aEditPending}
                         className="rounded-xl bg-[var(--accent)] px-4 py-2.5 text-sm font-medium text-white disabled:opacity-60"
                       >
-                        <SubmitLabel pending={aEditPending} idle="Kemas kini penugasan" />
+                        <SubmitLabel pending={aEditPending} idle="Update assignment" />
                       </button>
                     </div>
                   </form>
                 </details>
                 <form action={deleteAssignment} className="mt-2 flex justify-end">
                   <input type="hidden" name="id" value={a.id} />
-                  <button type="submit" className="text-xs text-red-700 underline hover:underline dark:text-red-300">
-                    Padam penugasan
+                  <button type="submit" className="text-xs text-[#E8342A]/80 underline hover:text-[#E8342A]">
+                    Delete assignment
                   </button>
                 </form>
               </li>

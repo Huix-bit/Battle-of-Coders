@@ -1,5 +1,3 @@
-/** Peraturan peralihan status perniagaan */
-
 export const VENDOR_STATUS = ["DRAFT", "AKTIF", "GANTUNG"] as const;
 export type VendorStatus = (typeof VENDOR_STATUS)[number];
 
@@ -54,21 +52,21 @@ export function canTransitionAssignment(from: string, to: string): boolean {
 }
 
 export const VENDOR_STATUS_LABEL: Record<VendorStatus, string> = {
-  DRAFT: "Draf",
-  AKTIF: "Aktif beroperasi",
-  GANTUNG: "Digantung",
+  DRAFT: "Draft",
+  AKTIF: "Active",
+  GANTUNG: "Suspended",
 };
 
 export const MARKET_STATUS_LABEL: Record<MarketStatus, string> = {
-  DIRANCANG: "Dirancang",
-  BEROPERASI: "Sedang beroperasi",
-  DITUTUP: "Ditutup sementara",
+  DIRANCANG: "Planned",
+  BEROPERASI: "Operating",
+  DITUTUP: "Closed",
 };
 
 export const ASSIGNMENT_STATUS_LABEL: Record<AssignmentStatus, string> = {
-  DIJADUALKAN: "Dijadualkan",
-  DISAHKAN: "Disahkan",
-  BERJALAN: "Sedang berjalan",
-  SELESAI: "Selesai",
-  BATAL: "Dibatalkan",
+  DIJADUALKAN: "Scheduled",
+  DISAHKAN: "Confirmed",
+  BERJALAN: "In Progress",
+  SELESAI: "Completed",
+  BATAL: "Cancelled",
 };
