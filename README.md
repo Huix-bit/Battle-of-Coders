@@ -20,7 +20,7 @@ PASAR-SMART is a centralized digital management system designed to boost the vis
 
 🛡️ **Error Handling**:Includes validations to prevent crashes from negative inputs or past dates.
 
-### **Demo and Documentation**
+## **Demo and Documentation**
 
 **System Requirements**: Minimum 3 Modules (2 CRUD + 1 Report) and at least 3 Database Tables.
 
