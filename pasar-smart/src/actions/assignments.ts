@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { supabase } from "@/lib/supabaseClient";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { canTransitionAssignment } from "@/lib/status";
 import {
   assignmentCreateSchema,
@@ -21,6 +21,7 @@ export async function createAssignment(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
+  const supabase = await createSupabaseServerClient();
   const raw = {
     vendorId: String(formData.get("vendorId") ?? ""),
     marketId: String(formData.get("marketId") ?? ""),
@@ -58,6 +59,7 @@ export async function updateAssignment(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
+  const supabase = await createSupabaseServerClient();
   const raw = {
     id: String(formData.get("id") ?? ""),
     vendorId: String(formData.get("vendorId") ?? ""),
@@ -108,6 +110,7 @@ export async function updateAssignment(
 }
 
 export async function deleteAssignment(formData: FormData): Promise<void> {
+  const supabase = await createSupabaseServerClient();
   const id = String(formData.get("id") ?? "");
   if (!id) throw new Error("ID tidak sah");
   try {

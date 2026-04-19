@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Shell } from "@/components/shell";
+import { getSessionProfile } from "@/lib/auth";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -19,15 +20,16 @@ export const metadata: Metadata = {
     "Pengurusan penjaja, jadual tapak pasar mengikut daerah, dan laporan agregat untuk komuniti Melaka.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const user = await getSessionProfile();
   return (
     <html lang="ms" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`} suppressHydrationWarning>
       <body className="min-h-full">
-        <Shell>{children}</Shell>
+        <Shell user={user}>{children}</Shell>
       </body>
     </html>
   );

@@ -6,9 +6,12 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "db:migrate": "node -e \"console.log('[pasar-smart] SQL order: 1) database/supabase_init.sql  2) database/smart_night_market.sql  3) database/step2_vendor_link_and_rls.sql')\"",
+    "db:seed": "node -e \"console.log('[pasar-smart] Optional seed: paste database/supabase_seed.sql into Supabase SQL Editor')\""
   },
   "dependencies": {
+    "@supabase/ssr": "^0.10.2",
     "@supabase/supabase-js": "^2.45.0",
     "dotenv": "^17.4.2",
     "next": "16.2.4",

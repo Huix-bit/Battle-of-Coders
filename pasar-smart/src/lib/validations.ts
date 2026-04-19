@@ -5,6 +5,7 @@ import { rmStringToSen } from "./money";
 import {
   ASSIGNMENT_STATUS,
   MARKET_STATUS,
+  STALL_STATUS,
   VENDOR_STATUS,
 } from "./status";
 
@@ -162,6 +163,24 @@ export const assignmentUpdateSchema = z
       }
     }
   });
+
+const stallTuple = STALL_STATUS as unknown as [string, ...string[]];
+
+export const stallCreateSchema = z.object({
+  vendorId: z.string().min(1, "Pilih penjaja"),
+  marketId: z.string().optional(),
+  name: z.string().min(2, "Nama gerai diperlukan"),
+  category: z.string().min(1, "Kategori diperlukan"),
+  status: z.enum(stallTuple),
+  flashSaleActive: z.boolean(),
+  isHere: z.boolean(),
+  mapLocationX: z.string().optional(),
+  mapLocationY: z.string().optional(),
+});
+
+export const stallUpdateSchema = stallCreateSchema.extend({
+  id: z.string().min(1),
+});
 
 export function formatZodError(err: z.ZodError): string {
   return err.issues.map((i) => i.message).join("; ");

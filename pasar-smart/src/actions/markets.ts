@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { supabase } from "@/lib/supabaseClient";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { canTransitionMarket } from "@/lib/status";
 import {
   formatZodError,
@@ -14,6 +14,7 @@ export async function createMarket(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
+  const supabase = await createSupabaseServerClient();
   const raw = {
     namaPasar: String(formData.get("namaPasar") ?? ""),
     daerah: String(formData.get("daerah") ?? ""),
@@ -43,6 +44,7 @@ export async function updateMarket(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
+  const supabase = await createSupabaseServerClient();
   const raw = {
     id: String(formData.get("id") ?? ""),
     namaPasar: String(formData.get("namaPasar") ?? ""),
@@ -86,6 +88,7 @@ export async function updateMarket(
 }
 
 export async function deleteMarket(formData: FormData): Promise<void> {
+  const supabase = await createSupabaseServerClient();
   const id = String(formData.get("id") ?? "");
   if (!id) throw new Error("ID tidak sah");
   try {

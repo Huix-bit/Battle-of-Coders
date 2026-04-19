@@ -15,6 +15,9 @@ export const ASSIGNMENT_STATUS = [
 ] as const;
 export type AssignmentStatus = (typeof ASSIGNMENT_STATUS)[number];
 
+export const STALL_STATUS = ["OPEN", "BUSY", "SOLD_OUT"] as const;
+export type StallStatus = (typeof STALL_STATUS)[number];
+
 const vendorEdges: Record<VendorStatus, VendorStatus[]> = {
   DRAFT: ["AKTIF", "GANTUNG"],
   AKTIF: ["GANTUNG"],
@@ -71,4 +74,10 @@ export const ASSIGNMENT_STATUS_LABEL: Record<AssignmentStatus, string> = {
   BERJALAN: "Sedang berjalan",
   SELESAI: "Selesai",
   BATAL: "Dibatalkan",
+};
+
+export const STALL_STATUS_LABEL: Record<StallStatus, string> = {
+  OPEN: "Buka",
+  BUSY: "Ramai / sibuk",
+  SOLD_OUT: "Habis jualan",
 };

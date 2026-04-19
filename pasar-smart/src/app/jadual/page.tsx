@@ -1,9 +1,10 @@
 import { JadualPanel, type AssignmentRow, type MarketRow, type VendorOption } from "@/components/jadual-panel";
-import { supabase } from "@/lib/supabaseClient";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
 export default async function JadualPage() {
+  const supabase = await createSupabaseServerClient();
   const [marketsResult, vendorsResult, assignmentsResult] = await Promise.all([
     supabase.from("market").select("*").order("nama_pasar", { ascending: true }),
     supabase.from("vendor").select("id, nama_perniagaan").order("nama_perniagaan", { ascending: true }),

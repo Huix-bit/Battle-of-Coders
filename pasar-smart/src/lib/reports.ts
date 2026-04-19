@@ -1,4 +1,4 @@
-import { supabase } from "./supabaseClient";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 /** Agregasi GROUP BY mengikut daerah — insight mengikut daerah */
 export type AgregasiDaerahRow = {
@@ -9,6 +9,7 @@ export type AgregasiDaerahRow = {
 };
 
 export async function getAgregasiMengikutDaerah(): Promise<AgregasiDaerahRow[]> {
+  const supabase = await createSupabaseServerClient();
   const { data: markets } = await supabase.from("market").select("id, daerah");
   const { data: assignments } = await supabase.from("assignment").select("id, market_id, vendor_id");
   const { data: vendors } = await supabase.from("vendor").select("id, yuran_harian_sen");
@@ -65,6 +66,7 @@ export type ButiranPenugasanRow = {
 };
 
 export async function getButiranPenugasan(): Promise<ButiranPenugasanRow[]> {
+  const supabase = await createSupabaseServerClient();
   const { data: assignments } = await supabase
     .from("assignment")
     .select("*, vendor (*), market (*)")

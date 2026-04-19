@@ -1,9 +1,10 @@
 import Link from "next/link";
-import { supabase } from "@/lib/supabaseClient";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
+  const supabase = await createSupabaseServerClient();
   const [vendorResult, marketResult, assignmentResult] = await Promise.all([
     supabase.from("vendor").select("id", { count: "exact", head: true }),
     supabase.from("market").select("id", { count: "exact", head: true }),

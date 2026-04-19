@@ -1,9 +1,10 @@
 import { VendorsPanel, type VendorRow } from "@/components/vendors-panel";
-import { supabase } from "@/lib/supabaseClient";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
 export default async function PenjajaPage() {
+  const supabase = await createSupabaseServerClient();
   const { data: rows } = await supabase
     .from("vendor")
     .select("*")
