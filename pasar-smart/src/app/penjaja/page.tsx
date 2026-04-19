@@ -1,18 +1,22 @@
 import { VendorsPanel, type VendorRow } from "@/components/vendors-panel";
-import { prisma } from "@/lib/prisma";
+import { supabase } from "@/lib/supabaseClient";
 
 export const dynamic = "force-dynamic";
 
 export default async function PenjajaPage() {
-  const rows = await prisma.vendor.findMany({ orderBy: { createdAt: "desc" } });
-  const vendors: VendorRow[] = rows.map((v) => ({
+  const { data: rows } = await supabase
+    .from("vendor")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  const vendors: VendorRow[] = (rows ?? []).map((v) => ({
     id: v.id,
-    namaPerniagaan: v.namaPerniagaan,
-    namaPanggilan: v.namaPanggilan,
-    noTelefon: v.noTelefon,
+    namaPerniagaan: v.nama_perniagaan,
+    namaPanggilan: v.nama_panggilan,
+    noTelefon: v.no_telefon,
     email: v.email,
-    jenisJualan: v.jenisJualan,
-    yuranHarianSen: v.yuranHarianSen,
+    jenisJualan: v.jenis_jualan,
+    yuranHarianSen: v.yuran_harian_sen,
     status: v.status,
   }));
 

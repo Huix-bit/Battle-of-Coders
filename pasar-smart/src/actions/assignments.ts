@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { prisma } from "@/lib/prisma";
+import { supabase } from "@/lib/supabaseClient";
 import { canTransitionAssignment } from "@/lib/status";
 import {
   assignmentCreateSchema,
@@ -10,11 +10,11 @@ import {
 } from "@/lib/validations";
 import type { ActionState } from "./types";
 
-function parseOptionalDate(s: string | undefined): Date | null {
+function parseOptionalDate(s: string | undefined): string | null {
   if (!s || !s.trim()) return null;
   const d = new Date(s);
   if (Number.isNaN(d.getTime())) return null;
-  return d;
+  return d.toISOString();
 }
 
 export async function createAssignment(
@@ -32,21 +32,21 @@ export async function createAssignment(
   const parsed = assignmentCreateSchema.safeParse(raw);
   if (!parsed.success) return { error: formatZodError(parsed.error) };
 
-  const mula = new Date(parsed.data.tarikhMula);
+  const mula = new Date(parsed.data.tarikhMula).toISOString();
   const tamat = parseOptionalDate(parsed.data.tarikhTamat);
 
   try {
-    await prisma.assignment.create({
-      data: {
-        vendorId: parsed.data.vendorId,
-        marketId: parsed.data.marketId,
-        tarikhMula: mula,
-        tarikhTamat: tamat,
-        petakStall: parsed.data.petakStall || null,
+    await supabase.from("assignment").insert([
+      {
+        vendor_id: parsed.data.vendorId,
+        market_id: parsed.data.marketId,
+        tarikh_mula: mula,
+        tarikh_tamat: tamat,
+        petak_stall: parsed.data.petakStall || null,
         catatan: parsed.data.catatan || null,
         status: "DIJADUALKAN",
       },
-    });
+    ]);
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Gagal mencipta penugasan" };
   }
@@ -71,7 +71,12 @@ export async function updateAssignment(
   const parsed = assignmentUpdateSchema.safeParse(raw);
   if (!parsed.success) return { error: formatZodError(parsed.error) };
 
-  const existing = await prisma.assignment.findUnique({ where: { id: parsed.data.id } });
+  const { data: existing } = await supabase
+    .from("assignment")
+    .select("*")
+    .eq("id", parsed.data.id)
+    .single();
+
   if (!existing) return { error: "Penugasan tidak dijumpai" };
   if (!canTransitionAssignment(existing.status, parsed.data.status)) {
     return {
@@ -79,22 +84,22 @@ export async function updateAssignment(
     };
   }
 
-  const mula = new Date(parsed.data.tarikhMula);
+  const mula = new Date(parsed.data.tarikhMula).toISOString();
   const tamat = parseOptionalDate(parsed.data.tarikhTamat);
 
   try {
-    await prisma.assignment.update({
-      where: { id: parsed.data.id },
-      data: {
-        vendorId: parsed.data.vendorId,
-        marketId: parsed.data.marketId,
-        tarikhMula: mula,
-        tarikhTamat: tamat,
-        petakStall: parsed.data.petakStall || null,
+    await supabase
+      .from("assignment")
+      .update({
+        vendor_id: parsed.data.vendorId,
+        market_id: parsed.data.marketId,
+        tarikh_mula: mula,
+        tarikh_tamat: tamat,
+        petak_stall: parsed.data.petakStall || null,
         catatan: parsed.data.catatan || null,
         status: parsed.data.status,
-      },
-    });
+      })
+      .eq("id", parsed.data.id);
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Gagal mengemas kini penugasan" };
   }
@@ -106,7 +111,7 @@ export async function deleteAssignment(formData: FormData): Promise<void> {
   const id = String(formData.get("id") ?? "");
   if (!id) throw new Error("ID tidak sah");
   try {
-    await prisma.assignment.delete({ where: { id } });
+    await supabase.from("assignment").delete().eq("id", id);
   } catch (e) {
     throw new Error(e instanceof Error ? e.message : "Gagal memadam penugasan");
   }

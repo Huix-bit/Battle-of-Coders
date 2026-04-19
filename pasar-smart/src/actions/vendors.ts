@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { prisma } from "@/lib/prisma";
+import { supabase } from "@/lib/supabaseClient";
 import { rmStringToSen } from "@/lib/money";
 import { canTransitionVendor } from "@/lib/status";
 import {
@@ -33,17 +33,17 @@ export async function createVendor(
   }
   if (sen < 0) return { error: "Yuran tidak boleh negatif" };
   try {
-    await prisma.vendor.create({
-      data: {
-        namaPerniagaan: parsed.data.namaPerniagaan,
-        namaPanggilan: parsed.data.namaPanggilan || null,
-        noTelefon: parsed.data.noTelefon || null,
+    await supabase.from("vendor").insert([
+      {
+        nama_perniagaan: parsed.data.namaPerniagaan,
+        nama_panggilan: parsed.data.namaPanggilan || null,
+        no_telefon: parsed.data.noTelefon || null,
         email: parsed.data.email || null,
-        jenisJualan: parsed.data.jenisJualan,
-        yuranHarianSen: sen,
+        jenis_jualan: parsed.data.jenisJualan,
+        yuran_harian_sen: sen,
         status: "DRAFT",
       },
-    });
+    ]);
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Gagal menyimpan penjaja" };
   }
@@ -75,7 +75,12 @@ export async function updateVendor(
   }
   if (sen < 0) return { error: "Yuran tidak boleh negatif" };
 
-  const existing = await prisma.vendor.findUnique({ where: { id: parsed.data.id } });
+  const { data: existing } = await supabase
+    .from("vendor")
+    .select("*")
+    .eq("id", parsed.data.id)
+    .single();
+
   if (!existing) return { error: "Rekod penjaja tidak dijumpai" };
   if (!canTransitionVendor(existing.status, parsed.data.status)) {
     return {
@@ -84,18 +89,18 @@ export async function updateVendor(
   }
 
   try {
-    await prisma.vendor.update({
-      where: { id: parsed.data.id },
-      data: {
-        namaPerniagaan: parsed.data.namaPerniagaan,
-        namaPanggilan: parsed.data.namaPanggilan || null,
-        noTelefon: parsed.data.noTelefon || null,
+    await supabase
+      .from("vendor")
+      .update({
+        nama_perniagaan: parsed.data.namaPerniagaan,
+        nama_panggilan: parsed.data.namaPanggilan || null,
+        no_telefon: parsed.data.noTelefon || null,
         email: parsed.data.email || null,
-        jenisJualan: parsed.data.jenisJualan,
-        yuranHarianSen: sen,
+        jenis_jualan: parsed.data.jenisJualan,
+        yuran_harian_sen: sen,
         status: parsed.data.status,
-      },
-    });
+      })
+      .eq("id", parsed.data.id);
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Gagal mengemas kini penjaja" };
   }
@@ -107,7 +112,7 @@ export async function deleteVendor(formData: FormData): Promise<void> {
   const id = String(formData.get("id") ?? "");
   if (!id) throw new Error("ID tidak sah");
   try {
-    await prisma.vendor.delete({ where: { id } });
+    await supabase.from("vendor").delete().eq("id", id);
   } catch (e) {
     throw new Error(e instanceof Error ? e.message : "Gagal memadam penjaja");
   }

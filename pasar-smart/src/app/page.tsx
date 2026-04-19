@@ -1,14 +1,18 @@
 import Link from "next/link";
-import { prisma } from "@/lib/prisma";
+import { supabase } from "@/lib/supabaseClient";
 
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
-  const [bilPenjaja, bilTapak, bilPenugasan] = await Promise.all([
-    prisma.vendor.count(),
-    prisma.market.count(),
-    prisma.assignment.count(),
+  const [vendorResult, marketResult, assignmentResult] = await Promise.all([
+    supabase.from("vendor").select("id", { count: "exact", head: true }),
+    supabase.from("market").select("id", { count: "exact", head: true }),
+    supabase.from("assignment").select("id", { count: "exact", head: true }),
   ]);
+
+  const bilPenjaja = vendorResult.count ?? 0;
+  const bilTapak = marketResult.count ?? 0;
+  const bilPenugasan = assignmentResult.count ?? 0;
 
   const cards = [
     { label: "Penjaja berdaftar", value: bilPenjaja, href: "/penjaja" },

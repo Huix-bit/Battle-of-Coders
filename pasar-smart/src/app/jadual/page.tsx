@@ -1,40 +1,47 @@
 import { JadualPanel, type AssignmentRow, type MarketRow, type VendorOption } from "@/components/jadual-panel";
-import { prisma } from "@/lib/prisma";
+import { supabase } from "@/lib/supabaseClient";
 
 export const dynamic = "force-dynamic";
 
 export default async function JadualPage() {
-  const [marketsRaw, vendorsRaw, assignmentsRaw] = await Promise.all([
-    prisma.market.findMany({ orderBy: { namaPasar: "asc" } }),
-    prisma.vendor.findMany({ orderBy: { namaPerniagaan: "asc" }, select: { id: true, namaPerniagaan: true } }),
-    prisma.assignment.findMany({
-      orderBy: { tarikhMula: "asc" },
-      include: { vendor: true, market: true },
-    }),
+  const [marketsResult, vendorsResult, assignmentsResult] = await Promise.all([
+    supabase.from("market").select("*").order("nama_pasar", { ascending: true }),
+    supabase.from("vendor").select("id, nama_perniagaan").order("nama_perniagaan", { ascending: true }),
+    supabase
+      .from("assignment")
+      .select("*, vendor (*), market (*)")
+      .order("tarikh_mula", { ascending: true }),
   ]);
+
+  const marketsRaw = marketsResult.data ?? [];
+  const vendorsRaw = vendorsResult.data ?? [];
+  const assignmentsRaw = assignmentsResult.data ?? [];
 
   const markets: MarketRow[] = marketsRaw.map((m) => ({
     id: m.id,
-    namaPasar: m.namaPasar,
+    namaPasar: m.nama_pasar,
     daerah: m.daerah,
     alamat: m.alamat,
-    hariOperasi: m.hariOperasi,
+    hariOperasi: m.hari_operasi,
     status: m.status,
   }));
 
-  const vendors: VendorOption[] = vendorsRaw;
+  const vendors: VendorOption[] = vendorsRaw.map((v) => ({
+    id: v.id,
+    namaPerniagaan: v.nama_perniagaan,
+  }));
 
   const assignments: AssignmentRow[] = assignmentsRaw.map((a) => ({
     id: a.id,
-    vendorId: a.vendorId,
-    marketId: a.marketId,
-    tarikhMula: a.tarikhMula.toISOString(),
-    tarikhTamat: a.tarikhTamat?.toISOString() ?? null,
-    petakStall: a.petakStall,
+    vendorId: a.vendor_id,
+    marketId: a.market_id,
+    tarikhMula: a.tarikh_mula,
+    tarikhTamat: a.tarikh_tamat ?? null,
+    petakStall: a.petak_stall,
     catatan: a.catatan,
     status: a.status,
-    vendorName: a.vendor.namaPerniagaan,
-    marketName: a.market.namaPasar,
+    vendorName: a.vendor?.nama_perniagaan ?? "",
+    marketName: a.market?.nama_pasar ?? "",
   }));
 
   return (

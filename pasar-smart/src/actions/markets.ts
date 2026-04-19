@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { prisma } from "@/lib/prisma";
+import { supabase } from "@/lib/supabaseClient";
 import { canTransitionMarket } from "@/lib/status";
 import {
   formatZodError,
@@ -23,15 +23,15 @@ export async function createMarket(
   const parsed = marketCreateSchema.safeParse(raw);
   if (!parsed.success) return { error: formatZodError(parsed.error) };
   try {
-    await prisma.market.create({
-      data: {
-        namaPasar: parsed.data.namaPasar,
+    await supabase.from("market").insert([
+      {
+        nama_pasar: parsed.data.namaPasar,
         daerah: parsed.data.daerah,
         alamat: parsed.data.alamat || null,
-        hariOperasi: parsed.data.hariOperasi || null,
+        hari_operasi: parsed.data.hariOperasi || null,
         status: "DIRANCANG",
       },
-    });
+    ]);
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Gagal menyimpan tapak pasar" };
   }
@@ -54,7 +54,12 @@ export async function updateMarket(
   const parsed = marketUpdateSchema.safeParse(raw);
   if (!parsed.success) return { error: formatZodError(parsed.error) };
 
-  const existing = await prisma.market.findUnique({ where: { id: parsed.data.id } });
+  const { data: existing } = await supabase
+    .from("market")
+    .select("*")
+    .eq("id", parsed.data.id)
+    .single();
+
   if (!existing) return { error: "Tapak pasar tidak dijumpai" };
   if (!canTransitionMarket(existing.status, parsed.data.status)) {
     return {
@@ -63,16 +68,16 @@ export async function updateMarket(
   }
 
   try {
-    await prisma.market.update({
-      where: { id: parsed.data.id },
-      data: {
-        namaPasar: parsed.data.namaPasar,
+    await supabase
+      .from("market")
+      .update({
+        nama_pasar: parsed.data.namaPasar,
         daerah: parsed.data.daerah,
         alamat: parsed.data.alamat || null,
-        hariOperasi: parsed.data.hariOperasi || null,
+        hari_operasi: parsed.data.hariOperasi || null,
         status: parsed.data.status,
-      },
-    });
+      })
+      .eq("id", parsed.data.id);
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Gagal mengemas kini tapak" };
   }
@@ -84,7 +89,7 @@ export async function deleteMarket(formData: FormData): Promise<void> {
   const id = String(formData.get("id") ?? "");
   if (!id) throw new Error("ID tidak sah");
   try {
-    await prisma.market.delete({ where: { id } });
+    await supabase.from("market").delete().eq("id", id);
   } catch (e) {
     throw new Error(e instanceof Error ? e.message : "Gagal memadam tapak");
   }
