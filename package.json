@@ -1,0 +1,12 @@
+{
+  "name": "battle-of-coders",
+  "private": true,
+  "scripts": {
+    "dev": "npm --prefix ./pasar-smart run dev",
+    "build": "npm --prefix ./pasar-smart run build",
+    "start": "npm --prefix ./pasar-smart run start",
+    "lint": "npm --prefix ./pasar-smart run lint",
+    "db:seed": "npm --prefix ./pasar-smart run db:seed",
+    "db:migrate": "npm --prefix ./pasar-smart run db:migrate"
+  }
+}
