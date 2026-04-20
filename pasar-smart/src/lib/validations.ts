@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { DAERAH_KEYS } from "./melaka";
-import { isBeforeToday, isValidDateRange, startOfDay } from "./dates";
+import { isBeforeToday, isValidDateRange } from "./dates";
 import { rmStringToSen } from "./money";
 import {
   ASSIGNMENT_STATUS,
@@ -167,15 +167,3 @@ export function formatZodError(err: z.ZodError): string {
   return err.issues.map((i) => i.message).join("; ");
 }
 
-/** Untuk semakan pantas tanpa Zod (contoh: kemas kini status sahaja) */
-export function assertTarikhMulaTidakLampau(tarikhMula: Date): void {
-  if (isBeforeToday(tarikhMula)) {
-    throw new Error("Tarikh mula tidak boleh pada hari yang telah berlalu");
-  }
-}
-
-export function assertJulatTarikh(mula: Date, tamat: Date | null): void {
-  if (tamat && startOfDay(tamat).getTime() < startOfDay(mula).getTime()) {
-    throw new Error("Tarikh tamat mesti pada atau selepas tarikh mula");
-  }
-}
