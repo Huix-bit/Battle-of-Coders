@@ -199,18 +199,19 @@ ORDER BY ss.last_updated DESC;
 
 CREATE OR REPLACE VIEW daily_sales_summary AS
 SELECT 
-    v.id as vendor_id,
+    a.vendor_id,
     v.nama_perniagaan,
-    m.id as market_id,
+    a.market_id,
     m.nama_pasar,
     CURRENT_DATE as sale_date,
     COALESCE(SUM(s.total_amount), 0) as total_sales,
     COALESCE(SUM(s.quantity), 0) as total_quantity_sold,
-    COUNT(DISTINCT DATE_TRUNC('hour', s.sale_time)) as hours_counting,
+    COUNT(s.id) as transaction_count,
     COALESCE(AVG(s.total_amount), 0) as avg_transaction_value
-FROM vendor v
-LEFT JOIN market m ON true
-LEFT JOIN sale s ON s.vendor_id = v.id 
+FROM assignment a
+JOIN vendor v on a.vendor_id = v.id
+JOIN market m on a.market_id = m.id
+LEFT JOIN sale s ON s.vendor_id = a.vendor_id 
     AND s.market_id = m.id
     AND DATE(s.sale_time) = CURRENT_DATE
-GROUP BY v.id, v.nama_perniagaan, m.id, m.nama_pasar;
+GROUP BY a.vendor_id, v.nama_perniagaan, a.market_id, m.nama_pasar;

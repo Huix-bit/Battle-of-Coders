@@ -17,6 +17,7 @@ const NAV_BY_ROLE: Record<UserRole, { href: string; label: string }[]> = {
     { href: "/vendor/dashboard", label: "📊 Hub"      },
     { href: "/vendor/layout",    label: "🗺️ Market Map"},
     { href: "/vendor/tools",     label: "🛠️ Tools"    },
+    { href: "/daftar-ai",        label: "🤖 AI Chat"  },
     { href: "/jadual",           label: "Schedule"    },
   ],
   user: [
@@ -28,7 +29,10 @@ const NAV_BY_ROLE: Record<UserRole, { href: string; label: string }[]> = {
   ],
 };
 
-const PUBLIC_NAV = [{ href: "/", label: "Home" }];
+const PUBLIC_NAV = [
+  { href: "/",         label: "Home"     },
+  { href: "/live-map", label: "Live Map" },
+];
 
 const FOOTER_FEATURES = [
   "🔍 Intelligent Stall Discovery",

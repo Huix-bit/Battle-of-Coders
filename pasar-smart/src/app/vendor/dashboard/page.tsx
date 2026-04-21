@@ -1,12 +1,43 @@
 "use client";
 
-import { VendorDashboard } from "@/components/vendor-dashboard";
+import { useLayoutEffect, useState } from "react";
 import Link from "next/link";
+import { VendorDashboard } from "@/components/vendor-dashboard";
+
+function getCookie(name: string): string | null {
+  if (typeof document === "undefined") return null;
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop()?.split(";").shift() ?? null;
+  return null;
+}
 
 export default function VendorDashboardPage() {
+  const [vendorId, setVendorId] = useState<string | null>(null);
+  const [ready, setReady] = useState(false);
+
+  useLayoutEffect(() => {
+    setVendorId(getCookie("vendor-id"));
+    setReady(true);
+  }, []);
+
+  if (!ready) return null;
+
+  if (!vendorId) {
+    return (
+      <div className="flex min-h-[40vh] flex-col items-center justify-center gap-4 text-center">
+        <p className="text-4xl">🔒</p>
+        <p className="text-lg font-semibold text-[var(--text)]">Vendor session not found</p>
+        <p className="text-sm text-[var(--muted)]">Please sign out and sign back in as a Vendor.</p>
+        <Link href="/login" className="rounded-xl bg-[var(--accent)] px-5 py-2 text-sm font-bold text-[var(--abyss)] hover:opacity-90">
+          Go to Sign In
+        </Link>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 pb-10">
-      {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-sm text-[var(--muted)]">
         <Link href="/vendor" className="hover:text-[var(--text)]">Vendor Portal</Link>
         <span>/</span>
@@ -20,7 +51,7 @@ export default function VendorDashboardPage() {
         </p>
       </div>
 
-      <VendorDashboard vendorId="demo-vendor-1" marketId="demo-market-1" />
+      <VendorDashboard vendorId={vendorId} marketId="demo-market-1" />
     </div>
   );
 }

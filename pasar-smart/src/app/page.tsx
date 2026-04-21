@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { PublicChatWidget } from "@/components/public-chat-widget";
 
 /* ── Scroll-reveal hook ──────────────────────────────────────────────────── */
 function useReveal(delay = 0) {
@@ -172,6 +173,7 @@ export default function HomePage() {
   }, []);
 
   return (
+    <>
     <div className="space-y-24 pb-8">
 
       {/* ── Hero ──────────────────────────────────────────────────────────── */}
@@ -287,6 +289,62 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* ── Ongoing Event ─────────────────────────────────────────────────── */}
+      <section className="space-y-6">
+        <div className="text-center reveal">
+          <span className="text-3xl">🌙</span>
+          <h2 className="mt-2 text-2xl font-bold text-[var(--accent-strong)]">Ongoing Event</h2>
+          <p className="mt-1 text-[var(--muted)]">Live tonight — explore the market before you arrive</p>
+        </div>
+
+        <a
+          href="/live-map"
+          className="group relative block overflow-hidden rounded-3xl border border-[var(--border)] bg-[var(--card)] p-8 shadow-lg transition-all hover:border-[var(--accent)]/50 hover:shadow-[var(--accent)]/10 hover:shadow-2xl"
+        >
+          <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_bottom-left,_#1a3a2a_0%,_transparent_60%)]" />
+          <div className="pointer-events-none absolute -bottom-10 -right-10 h-48 w-48 rounded-full bg-emerald-500/10 blur-3xl" />
+
+          <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-5">
+              <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border border-emerald-500/30 bg-emerald-500/10 text-4xl">
+                🏮
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-400" />
+                  <span className="text-xs font-semibold uppercase tracking-widest text-emerald-400">Live Now</span>
+                </div>
+                <h3 className="mt-1 text-xl font-bold text-[var(--accent-strong)]">Pasar Malam Melaka</h3>
+                <p className="text-sm text-[var(--muted)]">📅 April 20, 2026 &nbsp;·&nbsp; 🕕 6:00 PM – 11:30 PM</p>
+                <p className="mt-1 text-xs text-[var(--muted)]">📍 Jalan Banda, 75200 Melaka</p>
+              </div>
+            </div>
+
+            <div className="flex shrink-0 flex-wrap gap-3 sm:flex-col sm:items-end">
+              <div className="flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-xs">
+                <span>🏪</span>
+                <span className="font-semibold text-[var(--text)]">9 Active Stalls</span>
+              </div>
+              <div className="flex items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs">
+                <span>⚡</span>
+                <span className="font-semibold text-amber-400">2 Flash Deals</span>
+              </div>
+              <div className="flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-xs">
+                <span>🔥</span>
+                <span className="font-semibold text-[var(--text)]">95% crowd at B4</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-6 flex items-center justify-between rounded-2xl border border-emerald-500/20 bg-emerald-500/5 px-5 py-3">
+            <span className="text-sm text-[var(--muted)]">Heatmap · Stall Layout · Parking &amp; Gates · Live Deals</span>
+            <span className="flex items-center gap-1.5 rounded-full bg-emerald-500 px-4 py-1.5 text-xs font-bold text-white shadow-lg shadow-emerald-500/20 transition-all group-hover:scale-105">
+              Explore Live Map →
+            </span>
+          </div>
+        </a>
+      </section>
+
       {/* ── Role cards ────────────────────────────────────────────────────── */}
       <section className="space-y-6">
         <div ref={rolesRef} className="reveal text-center">
@@ -356,5 +414,8 @@ export default function HomePage() {
         </div>
       </section>
     </div>
+
+    <PublicChatWidget />
+    </>
   );
 }

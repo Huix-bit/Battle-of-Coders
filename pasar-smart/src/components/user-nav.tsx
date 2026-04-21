@@ -1,7 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { createBrowserClient, clearRoleCookie, ROLE_LABELS, UserRole } from "@/lib/authClient";
+import {
+  createBrowserClient,
+  clearRoleCookie,
+  clearVendorIdCookie,
+  ROLE_LABELS,
+  UserRole,
+} from "@/lib/authClient";
 
 const ROLE_COLORS: Record<UserRole, string> = {
   admin:  "from-violet-500 to-purple-600",
@@ -26,9 +32,10 @@ export function UserNav({ role }: UserNavProps) {
       const supabase = createBrowserClient();
       await supabase.auth.signOut();
     } catch {
-      // Demo / unconfigured — no real session
+      // sign-out errors are non-fatal
     }
     clearRoleCookie();
+    clearVendorIdCookie();
     window.location.href = "/login";
   }
 

@@ -1,7 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { supabase } from "@/lib/supabaseClient";
+
+const db = supabaseAdmin ?? supabase;
 import { rmStringToSen } from "@/lib/money";
 import { canTransitionVendor } from "@/lib/status";
 import {
@@ -33,7 +36,7 @@ export async function createVendor(
   }
   if (sen < 0) return { error: "Yuran tidak boleh negatif" };
   try {
-    await supabase.from("vendor").insert([
+    await db.from("vendor").insert([
       {
         nama_perniagaan: parsed.data.namaPerniagaan,
         nama_panggilan: parsed.data.namaPanggilan || null,
@@ -75,7 +78,7 @@ export async function updateVendor(
   }
   if (sen < 0) return { error: "Yuran tidak boleh negatif" };
 
-  const { data: existing } = await supabase
+  const { data: existing } = await db
     .from("vendor")
     .select("*")
     .eq("id", parsed.data.id)
@@ -89,7 +92,7 @@ export async function updateVendor(
   }
 
   try {
-    await supabase
+    await db
       .from("vendor")
       .update({
         nama_perniagaan: parsed.data.namaPerniagaan,
@@ -112,7 +115,7 @@ export async function deleteVendor(formData: FormData): Promise<void> {
   const id = String(formData.get("id") ?? "");
   if (!id) throw new Error("ID tidak sah");
   try {
-    await supabase.from("vendor").delete().eq("id", id);
+    await db.from("vendor").delete().eq("id", id);
   } catch (e) {
     throw new Error(e instanceof Error ? e.message : "Gagal memadam penjaja");
   }

@@ -1,5 +1,6 @@
 import { VendorsPanel, type VendorRow } from "@/components/vendors-panel";
-import { supabase, SUPABASE_CONFIGURED } from "@/lib/supabaseClient";
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { SUPABASE_CONFIGURED } from "@/lib/supabaseClient";
 import { MOCK_VENDORS } from "@/lib/mockData";
 
 export const dynamic = "force-dynamic";
@@ -7,8 +8,8 @@ export const dynamic = "force-dynamic";
 export default async function PenjajaPage() {
   let vendors: VendorRow[] = MOCK_VENDORS;
 
-  if (SUPABASE_CONFIGURED) {
-    const { data: rows } = await supabase
+  if (SUPABASE_CONFIGURED && supabaseAdmin) {
+    const { data: rows } = await supabaseAdmin
       .from("vendor")
       .select("*")
       .order("created_at", { ascending: false });

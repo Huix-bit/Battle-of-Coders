@@ -1,7 +1,10 @@
 "use server";
 
 import Groq from "groq-sdk";
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { supabase } from "@/lib/supabaseClient";
+
+const db = supabaseAdmin ?? supabase;
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
@@ -11,7 +14,7 @@ export async function getDailySalesSummary(vendorId: string, marketId: string) {
   try {
     const today = new Date().toISOString().split("T")[0];
 
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from("sale")
       .select("*")
       .eq("vendor_id", vendorId)
@@ -64,7 +67,7 @@ export async function getWeeklyAnalytics(vendorId: string, marketId: string) {
     const today = new Date();
     const sevenDaysAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from("sale")
       .select("*")
       .eq("vendor_id", vendorId)
@@ -118,7 +121,7 @@ export async function getWeeklyAnalytics(vendorId: string, marketId: string) {
 
 export async function getTopSellingItems(vendorId: string): Promise<any[]> {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from("sale")
       .select("item_id, quantity")
       .eq("vendor_id", vendorId);
@@ -141,7 +144,7 @@ export async function getTopSellingItems(vendorId: string): Promise<any[]> {
         .sort((a, b) => b[1] - a[1])
         .slice(0, 5)
         .map(async ([itemId, quantity]) => {
-          const { data: item } = await supabase
+          const { data: item } = await db
             .from("vendor_menu")
             .select("*")
             .eq("id", itemId)
@@ -173,7 +176,7 @@ export async function updateVendorAnalytics(
 
     const dailySummary = await getDailySalesSummary(vendorId, marketId);
 
-    const { error } = await supabase.from("vendor_analytics").upsert(
+    const { error } = await db.from("vendor_analytics").upsert(
       {
         id: `analytics-${vendorId}-${marketId}-${dateOnly}`,
         vendor_id: vendorId,
@@ -209,7 +212,7 @@ export async function generateAIRecommendations(
 ): Promise<any[]> {
   try {
     // Get vendor data
-    const { data: vendor } = await supabase
+    const { data: vendor } = await db
       .from("vendor")
       .select("*")
       .eq("id", vendorId)
@@ -217,7 +220,7 @@ export async function generateAIRecommendations(
 
     // Get recent sales data
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-    const { data: sales } = await supabase
+    const { data: sales } = await db
       .from("sale")
       .select("*")
       .eq("vendor_id", vendorId)
@@ -225,7 +228,7 @@ export async function generateAIRecommendations(
       .gte("sale_time", sevenDaysAgo.toISOString());
 
     // Get menu items
-    const { data: menuItems } = await supabase
+    const { data: menuItems } = await db
       .from("vendor_menu")
       .select("*")
       .eq("vendor_id", vendorId);
@@ -293,7 +296,7 @@ Balas HANYA dengan JSON array ini (tiada teks lain):
 
     // Save recommendations to database
     for (const rec of recommendations) {
-      await supabase.from("recommendation").insert({
+      await db.from("recommendation").insert({
         id: `rec-${Date.now()}-${Math.random()}`,
         vendor_id: vendorId,
         type: rec.type,
@@ -314,7 +317,7 @@ Balas HANYA dengan JSON array ini (tiada teks lain):
 
 export async function getRecommendations(vendorId: string): Promise<any[]> {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from("recommendation")
       .select("*")
       .eq("vendor_id", vendorId)
@@ -334,7 +337,7 @@ export async function applyRecommendation(
   recommendationId: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const { error } = await supabase
+    const { error } = await db
       .from("recommendation")
       .update({ applied_at: new Date().toISOString() })
       .eq("id", recommendationId);

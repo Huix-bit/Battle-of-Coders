@@ -1,40 +1,17 @@
 "use client";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { supabase, SUPABASE_CONFIGURED } from "@/lib/supabaseClient";
 
 type ZoneType = "hot" | "warm" | "cold" | "empty" | "phantom";
 interface Zone { id: string; row: number; col: number; type: ZoneType; vendor?: string; crowd?: number; }
 
-const ZONE_DATA: Zone[] = [
-  { id:"A1", row:0,col:0, type:"cold",    vendor:"Snacks Stall",        crowd:20 },
-  { id:"A2", row:0,col:1, type:"warm",    vendor:"Kuih Muih Puan Ros",  crowd:20 },
-  { id:"A3", row:0,col:2, type:"hot",     vendor:"Cendol Pak Din",      crowd:85 },
-  { id:"A4", row:0,col:3, type:"hot",     vendor:"Mee Goreng Haji Ali", crowd:95 },
-  { id:"A5", row:0,col:4, type:"hot",     vendor:"Satay Jamilah",       crowd:88 },
-  { id:"A6", row:0,col:5, type:"warm",    vendor:"Rojak Buah",          crowd:40 },
-  { id:"A7", row:0,col:6, type:"cold",    vendor:"Keropok Lekor",       crowd:25 },
-  { id:"B1", row:1,col:0, type:"empty",                                            },
-  { id:"B2", row:1,col:1, type:"warm",    vendor:"Nasi Lemak Wangi",    crowd:45 },
-  { id:"B3", row:1,col:2, type:"hot",     vendor:"Ayam Percik Siti",    crowd:50 },
-  { id:"B4", row:1,col:3, type:"hot",     vendor:"Ikan Bakar Hamidah",  crowd:80 },
-  { id:"B5", row:1,col:4, type:"warm",    vendor:"Murtabak Rafiq",      crowd:35 },
-  { id:"B6", row:1,col:5, type:"cold",    vendor:"Air Tebu",            crowd:18 },
-  { id:"B7", row:1,col:6, type:"phantom", vendor:"Ahmad Burger (absent)"},
-  { id:"C1", row:2,col:0, type:"cold",    vendor:"Buah Tempatan",       crowd:15 },
-  { id:"C2", row:2,col:1, type:"cold",    vendor:"Kerepek Stall",       crowd:12 },
-  { id:"C3", row:2,col:2, type:"warm",    vendor:"Laksa Johor",         crowd:42 },
-  { id:"C4", row:2,col:3, type:"warm",    vendor:"Char Kway Teow",      crowd:48 },
-  { id:"C5", row:2,col:4, type:"empty",                                            },
-  { id:"C6", row:2,col:5, type:"empty",                                            },
-  { id:"C7", row:2,col:6, type:"cold",    vendor:"Pudding Stall",       crowd:10 },
-];
-
 const ZONE_CFG: Record<ZoneType, { label: string; bg: string; text: string; border: string; dot: string }> = {
-  hot:     { label: "Hot Zone",     bg: "bg-red-500/25",     text: "text-red-300",     border: "border-red-500/50",     dot: "bg-red-400"     },
-  warm:    { label: "Warm Zone",    bg: "bg-amber-500/20",   text: "text-amber-300",   border: "border-amber-500/40",   dot: "bg-amber-400"   },
-  cold:    { label: "Cold Zone",    bg: "bg-blue-500/15",    text: "text-blue-300",    border: "border-blue-500/30",    dot: "bg-blue-400"    },
-  empty:   { label: "Available",    bg: "bg-[var(--raised)]",text: "text-[var(--muted)]",border: "border-dashed border-[var(--border)]", dot: "bg-[var(--muted)]" },
-  phantom: { label: "Phantom Stall",bg: "bg-red-900/30",     text: "text-red-400",     border: "border-red-400/50",     dot: "bg-red-400"     },
+  hot:     { label: "Hot Zone",     bg: "bg-red-500/25",     text: "text-white", border: "border-red-500/50",     dot: "bg-red-400"     },
+  warm:    { label: "Warm Zone",    bg: "bg-amber-500/20",   text: "text-white", border: "border-amber-500/40",   dot: "bg-amber-400"   },
+  cold:    { label: "Cold Zone",    bg: "bg-blue-500/15",    text: "text-white", border: "border-blue-500/30",    dot: "bg-blue-400"    },
+  empty:   { label: "Available",    bg: "bg-[var(--raised)]",text: "text-white", border: "border-dashed border-[var(--border)]", dot: "bg-[var(--muted)]" },
+  phantom: { label: "Phantom Stall",bg: "bg-red-900/30",     text: "text-white", border: "border-red-400/50",     dot: "bg-red-400"     },
 };
 
 const SUGGESTIONS = [
@@ -51,12 +28,127 @@ const PRIORITY_CFG: Record<string, string> = {
   Low:    "bg-[var(--raised)] text-[var(--muted)] border-[var(--border)]",
 };
 
+// Parse stall code like "A01" → { row: 0, col: 0 }
+function parseStallCode(code: string | null): { row: number; col: number } | null {
+  if (!code) return null;
+  const rowChar = code[0]?.toUpperCase();
+  const colStr = code.slice(1).replace(/^0+/, "") || "1";
+  const row = rowChar ? rowChar.charCodeAt(0) - 65 : -1;
+  const col = parseInt(colStr, 10) - 1;
+  if (row < 0 || isNaN(col) || col < 0) return null;
+  return { row, col };
+}
+
 export default function LayoutPage() {
+  const [zoneData, setZoneData] = useState<Zone[]>([]);
+  const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Zone | null>(null);
   const [applied, setApplied] = useState<Set<number>>(new Set());
 
-  const rows = [0, 1, 2];
-  const cols = [0, 1, 2, 3, 4, 5, 6];
+  useEffect(() => {
+    if (!SUPABASE_CONFIGURED) { setLoading(false); return; }
+    async function fetchLayout() {
+      try {
+        // All vendors (admin sees everyone regardless of status)
+        const { data: vendorRows } = await supabase
+          .from("vendor")
+          .select("id, nama_perniagaan, status")
+          .order("created_at", { ascending: true });
+
+        if (!vendorRows || vendorRows.length === 0) { setLoading(false); return; }
+        const ids = vendorRows.map((v: any) => v.id);
+        const vendorNameMap = new Map(vendorRows.map((v: any) => [v.id, v.nama_perniagaan as string]));
+
+        // Assignments (stall positions)
+        const { data: assignments } = await supabase
+          .from("assignment")
+          .select("vendor_id, petak_stall")
+          .in("vendor_id", ids)
+          .eq("status", "DIJADUALKAN");
+
+        // Stall presence
+        const { data: stallStatus } = await supabase
+          .from("stall_status")
+          .select("vendor_id, is_present, current_stall_number")
+          .in("vendor_id", ids);
+
+        const assignMap = new Map((assignments ?? []).map((a: any) => [a.vendor_id, a.petak_stall as string]));
+        const presenceMap = new Map((stallStatus ?? []).map((s: any) => [s.vendor_id, s]));
+
+        const zones: Zone[] = [];
+        const usedCells = new Set<string>();
+        const placedVendors = new Set<string>();
+
+        // Pass 1: place vendors that have a UNIQUE, valid stall code
+        for (const v of vendorRows) {
+          const stall = presenceMap.get(v.id);
+          const stallCode = stall?.current_stall_number || assignMap.get(v.id);
+          const pos = parseStallCode(stallCode ?? null);
+          if (!pos) continue;
+          const cellKey = `${pos.row}-${pos.col}`;
+          if (usedCells.has(cellKey)) continue; // cell already taken by another vendor
+          usedCells.add(cellKey);
+          placedVendors.add(v.id);
+          const isPresent = stall?.is_present ?? false;
+          const vStatus = (v as any).status;
+          zones.push({
+            id: stallCode!,
+            row: pos.row,
+            col: pos.col,
+            type: isPresent ? "hot" : vStatus === "AKTIF" ? "warm" : "cold",
+            vendor: vendorNameMap.get(v.id) ?? v.id,
+          });
+        }
+
+        // Pass 2: auto-place every vendor that wasn't placed in pass 1
+        const GRID_COLS = 7;
+        const GRID_ROWS = 3;
+        let autoRow = 0;
+        let autoCol = 0;
+
+        function nextFreeCell() {
+          while (autoRow < GRID_ROWS) {
+            if (!usedCells.has(`${autoRow}-${autoCol}`)) return true;
+            autoCol++;
+            if (autoCol >= GRID_COLS) { autoCol = 0; autoRow++; }
+          }
+          return false;
+        }
+
+        for (const v of vendorRows) {
+          if (placedVendors.has(v.id)) continue;
+          if (!nextFreeCell()) break;
+          const cellKey = `${autoRow}-${autoCol}`;
+          usedCells.add(cellKey);
+          const isPresent = presenceMap.get(v.id)?.is_present ?? false;
+          const vStatus = (v as any).status;
+          zones.push({
+            id: `${String.fromCharCode(65 + autoRow)}${autoCol + 1}`,
+            row: autoRow,
+            col: autoCol,
+            type: isPresent ? "hot" : vStatus === "AKTIF" ? "warm" : "cold",
+            vendor: vendorNameMap.get(v.id) ?? v.id,
+          });
+          autoCol++;
+          if (autoCol >= GRID_COLS) { autoCol = 0; autoRow++; }
+        }
+
+        setZoneData(zones);
+      } catch (e) {
+        console.error("Layout fetch error:", e);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchLayout();
+  }, []);
+
+  // Determine grid dimensions from data
+  const maxRow = zoneData.length > 0 ? Math.max(...zoneData.map((z) => z.row), 2) : 2;
+  const maxCol = zoneData.length > 0 ? Math.max(...zoneData.map((z) => z.col), 6) : 6;
+  const rows = Array.from({ length: maxRow + 1 }, (_, i) => i);
+  const cols = Array.from({ length: maxCol + 1 }, (_, i) => i);
+
 
   return (
     <div className="space-y-6 pb-10">
@@ -69,10 +161,10 @@ export default function LayoutPage() {
       {/* Zone stats */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {[
-          { label: "Hot Zones",     value: ZONE_DATA.filter((z) => z.type === "hot").length,     dot: "bg-red-400",     accent: "text-red-400"     },
-          { label: "Warm Zones",    value: ZONE_DATA.filter((z) => z.type === "warm").length,    dot: "bg-amber-400",   accent: "text-amber-400"   },
-          { label: "Cold Zones",    value: ZONE_DATA.filter((z) => z.type === "cold").length,    dot: "bg-blue-400",    accent: "text-blue-400"    },
-          { label: "Phantom Stalls",value: ZONE_DATA.filter((z) => z.type === "phantom").length, dot: "bg-red-400",     accent: "text-red-400"     },
+          { label: "Hot Zones",     value: loading ? "…" : zoneData.filter((z) => z.type === "hot").length,     dot: "bg-red-400",     accent: "text-red-400"     },
+          { label: "Warm Zones",    value: loading ? "…" : zoneData.filter((z) => z.type === "warm").length,    dot: "bg-amber-400",   accent: "text-amber-400"   },
+          { label: "Cold Zones",    value: loading ? "…" : zoneData.filter((z) => z.type === "cold").length,    dot: "bg-blue-400",    accent: "text-blue-400"    },
+          { label: "Phantom Stalls",value: loading ? "…" : zoneData.filter((z) => z.type === "phantom").length, dot: "bg-red-400",     accent: "text-red-400"     },
         ].map((s) => (
           <div key={s.label} className="rounded-2xl border border-[var(--border)] bg-[var(--lifted)] p-4">
             <div className="flex items-center gap-2 mb-1"><span className={`h-2.5 w-2.5 rounded-full ${s.dot}`} /><span className="text-xs text-[var(--muted)]">{s.label}</span></div>
@@ -98,12 +190,15 @@ export default function LayoutPage() {
             <div className="mb-3 flex items-center gap-2 text-xs text-[var(--muted)]">
               <span>← Entrance</span><div className="h-px flex-1 border-t border-dashed border-[var(--border)]" /><span>Exit →</span>
             </div>
+            {loading ? (
+              <div className="py-12 text-center text-sm text-[var(--muted)]">Loading stall layout…</div>
+            ) : (
             <div className="space-y-2">
               {rows.map((ri) => (
                 <div key={ri} className="flex items-center gap-2">
                   <span className="w-5 shrink-0 text-center text-[10px] font-bold text-[var(--muted)]">{String.fromCharCode(65 + ri)}</span>
                   {cols.map((ci) => {
-                    const zone = ZONE_DATA.find((z) => z.row === ri && z.col === ci);
+                    const zone = zoneData.find((z) => z.row === ri && z.col === ci);
                     if (!zone) return <div key={ci} className="h-14 flex-1 rounded-lg bg-[var(--raised)]/20" />;
                     const cfg = ZONE_CFG[zone.type];
                     return (
@@ -127,6 +222,7 @@ export default function LayoutPage() {
                 {cols.map((c) => <span key={c} className="flex-1 text-center text-[10px] text-[var(--muted)]">{c + 1}</span>)}
               </div>
             </div>
+            )}
           </div>
 
           {/* Selected zone detail */}

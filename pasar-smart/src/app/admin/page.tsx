@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { supabase, SUPABASE_CONFIGURED } from "@/lib/supabaseClient";
 
 const LOOP_STEPS = [
   { step: "01", icon: "📡", title: "Monitor", subtitle: "Real-Time Visibility", desc: "Live dashboard tracking active vendors, crowd density, and stall attendance — eliminating phantom stalls.", href: "/admin/monitor", cta: "Open Monitor →", color: "from-blue-500/20 to-indigo-500/20", border: "border-blue-500/40" },
@@ -18,17 +19,46 @@ const MODULES = [
   { icon: "📋", title: "Business Reports", desc: "Aggregated summaries and CSV exports by district for external analysis.", href: "/laporan", accent: "text-pink-400", bg: "bg-pink-500/10" },
 ];
 
-const LIVE = [
-  { label: "Active Vendors", value: "38", trend: "+3 vs yesterday", up: true, icon: "👤" },
-  { label: "Market Coverage", value: "84%", trend: "stalls occupied", up: true, icon: "🏪" },
-  { label: "Crowd Index", value: "Moderate", trend: "peak in 40 min", up: null, icon: "👥" },
-  { label: "Revenue Est.", value: "RM 4,820", trend: "+12% vs avg", up: true, icon: "💰" },
-];
 
 export default function AdminPage() {
   const [active, setActive] = useState(0);
+  const [kpi, setKpi] = useState({ vendors: "…", coverage: "…", revenue: "…", flashActive: "…" });
+
   useEffect(() => {
     const id = setInterval(() => setActive((s) => (s + 1) % LOOP_STEPS.length), 2800);
+    return () => clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    if (!SUPABASE_CONFIGURED) return;
+    async function fetchKpi() {
+      try {
+        const [{ count: totalVendors }, { data: openStalls }, { data: assignments }, { data: flashSales }, { data: analytics }] =
+          await Promise.all([
+            supabase.from("vendor").select("*", { count: "exact", head: true }).eq("status", "AKTIF"),
+            supabase.from("stall_status").select("vendor_id").eq("is_present", true),
+            supabase.from("assignment").select("id").eq("status", "DIJADUALKAN"),
+            supabase.from("flash_sale").select("id").eq("is_active", true).gt("end_time", new Date().toISOString()),
+            supabase.from("vendor_analytics").select("total_sales").eq("date", new Date().toISOString().slice(0, 10)),
+          ]);
+
+        const activeCount = openStalls?.length ?? 0;
+        const assignCount = assignments?.length ?? 1;
+        const coverage = assignCount > 0 ? Math.round((activeCount / assignCount) * 100) : 0;
+        const revenue = (analytics ?? []).reduce((s: number, r: any) => s + Number(r.total_sales), 0);
+
+        setKpi({
+          vendors: String(activeCount),
+          coverage: `${coverage}%`,
+          revenue: revenue > 0 ? `RM ${revenue.toFixed(0)}` : "RM 0",
+          flashActive: String(flashSales?.length ?? 0),
+        });
+      } catch (e) {
+        console.error("Admin KPI fetch error:", e);
+      }
+    }
+    fetchKpi();
+    const id = setInterval(fetchKpi, 30000);
     return () => clearInterval(id);
   }, []);
 
@@ -51,13 +81,18 @@ export default function AdminPage() {
 
       {/* Live KPIs */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {LIVE.map((s) => (
+        {[
+          { label: "Active Vendors",  value: kpi.vendors,     trend: "stalls open now",        up: true,  icon: "👤" },
+          { label: "Market Coverage", value: kpi.coverage,    trend: "assignments filled",      up: true,  icon: "🏪" },
+          { label: "Flash Sales",     value: kpi.flashActive, trend: "live deals right now",    up: null,  icon: "⚡" },
+          { label: "Revenue Today",   value: kpi.revenue,     trend: "from vendor analytics",   up: true,  icon: "💰" },
+        ].map((s) => (
           <div key={s.label} className="rounded-2xl border border-[var(--border)] bg-[var(--lifted)] p-4">
             <span className="text-xl">{s.icon}</span>
             <p className="mt-2 text-xl font-bold text-[var(--accent)]">{s.value}</p>
             <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--muted)]">{s.label}</p>
             <p className={`text-[10px] ${s.up === true ? "text-emerald-400" : s.up === false ? "text-red-400" : "text-[var(--muted)]"}`}>
-              {s.up === true ? "↑" : s.up === false ? "↓" : ""} {s.trend}
+              {s.trend}
             </p>
           </div>
         ))}

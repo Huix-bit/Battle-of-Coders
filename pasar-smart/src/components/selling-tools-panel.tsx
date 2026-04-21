@@ -1,21 +1,22 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   createFlashSale,
   createPasarDriveOrder,
   addItemToPasarDriveOrder,
-  requestSmallChange,
+  getIncomingPasarDriveOrders,
+  confirmPasarDriveOrder,
+  completePasarDriveOrder,
   recordSale,
 } from "@/actions/sellingTools";
 
-type Tab = "flash" | "drive" | "change" | "sales";
+type Tab = "flash" | "drive" | "sales";
 
 const TABS: { id: Tab; icon: string; label: string; accent: string }[] = [
-  { id: "flash",  icon: "⚡", label: "Flash Sale",   accent: "text-amber-400"  },
-  { id: "drive",  icon: "🚗", label: "Pasar-Drive",  accent: "text-cyan-400"   },
-  { id: "change", icon: "💰", label: "Duit Pecah",   accent: "text-emerald-400"},
-  { id: "sales",  icon: "📊", label: "Record Sale",  accent: "text-pink-400"   },
+  { id: "flash", icon: "⚡", label: "Flash Sale",  accent: "text-amber-400" },
+  { id: "drive", icon: "🚗", label: "Pasar-Drive", accent: "text-cyan-400"  },
+  { id: "sales", icon: "📊", label: "Record Sale", accent: "text-pink-400"  },
 ];
 
 function Toast({ msg, ok }: { msg: string; ok: boolean }) {
@@ -30,9 +31,9 @@ function Toast({ msg, ok }: { msg: string; ok: boolean }) {
   );
 }
 
-function InputField({ label, type = "number", value, onChange, placeholder }: {
+function InputField({ label, type = "number", value, onChange, placeholder, min, max, onBlur }: {
   label: string; type?: string; value: string;
-  onChange: (v: string) => void; placeholder?: string;
+  onChange: (v: string) => void; placeholder?: string; min?: string; max?: string; onBlur?: (e: React.FocusEvent<HTMLInputElement>) => void;
 }) {
   return (
     <div className="space-y-1.5">
@@ -41,14 +42,17 @@ function InputField({ label, type = "number", value, onChange, placeholder }: {
         type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}
+        onBlur={onBlur}
         placeholder={placeholder}
+        min={min}
+        max={max}
         className="w-full rounded-xl border border-[var(--border)] bg-[var(--abyss)] px-4 py-2.5 text-sm text-[var(--text)] placeholder:text-[var(--muted)] focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
       />
     </div>
   );
 }
 
-export function SellingToolsPanel({ vendorId, marketId }: { vendorId: string; marketId: string }) {
+export function SellingToolsPanel({ vendorId, marketId, onFlashSaleCreated }: { vendorId: string; marketId: string; onFlashSaleCreated?: () => void }) {
   const [activeTab, setActiveTab] = useState<Tab>("flash");
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
@@ -65,16 +69,69 @@ export function SellingToolsPanel({ vendorId, marketId }: { vendorId: string; ma
     : null;
 
   async function handleFlash() {
-    if (!flash.price || !flash.pct) { showToast("Please fill price and discount.", false); return; }
+    if (!flash.price || !flash.pct) {
+      showToast("Please fill price and discount.", false);
+      return;
+    }
+    const price = parseFloat(flash.price);
+    const pct = parseFloat(flash.pct);
+    if (price < 0) {
+      showToast("Original price cannot be negative.", false);
+      return;
+    }
+    if (pct <= 0 || pct > 100) {
+      showToast("Discount must be between 1% and 100%.", false);
+      return;
+    }
     setLoading(true);
     try {
-      const r = await createFlashSale(vendorId, marketId, null, parseFloat(flash.price), parseFloat(flash.pct), parseInt(flash.mins));
-      if (r.success) { showToast("Flash sale launched successfully!"); setFlash({ price: "", pct: "", mins: "30", item: "" }); }
-      else showToast(r.error ?? "Failed to create flash sale.", false);
+      const r = await createFlashSale(vendorId, marketId, null, price, pct, parseInt(flash.mins), undefined, flash.item.trim() || undefined);
+      if (r.success) {
+        showToast("Flash sale launched successfully!");
+        setFlash({ price: "", pct: "", mins: "30", item: "" });
+        onFlashSaleCreated?.();
+        if (typeof window !== "undefined") {
+          sessionStorage.setItem("flashSaleCreated", Date.now().toString());
+          window.dispatchEvent(new Event("pasar-smart-flash-sale"));
+        }
+      } else showToast(r.error ?? "Failed to create flash sale.", false);
     } finally { setLoading(false); }
   }
 
-  // ── Pasar-Drive ─────────────────────────────────────────────────────────────
+  // ── Pasar-Drive: Incoming Orders ────────────────────────────────────────────
+  const [incomingOrders, setIncomingOrders] = useState<any[]>([]);
+
+  async function loadIncomingOrders() {
+    const orders = await getIncomingPasarDriveOrders(vendorId);
+    setIncomingOrders(orders);
+  }
+
+  useEffect(() => {
+    if (activeTab === "drive") {
+      loadIncomingOrders();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, vendorId]);
+
+  async function handleConfirmOrder(driveId: string) {
+    setLoading(true);
+    try {
+      const r = await confirmPasarDriveOrder(driveId);
+      if (r.success) { showToast("Order confirmed!"); loadIncomingOrders(); }
+      else showToast(r.error ?? "Failed to confirm order.", false);
+    } finally { setLoading(false); }
+  }
+
+  async function handleCompleteOrder(driveId: string) {
+    setLoading(true);
+    try {
+      const r = await completePasarDriveOrder(driveId);
+      if (r.success) { showToast("Order completed!"); loadIncomingOrders(); }
+      else showToast(r.error ?? "Failed to complete order.", false);
+    } finally { setLoading(false); }
+  }
+
+  // ── Pasar-Drive: Create Order ───────────────────────────────────────────────
   const [orderId, setOrderId] = useState<string | null>(null);
   const [driveItems, setDriveItems] = useState<{ qty: string; price: string }[]>([]);
   const [driveForm, setDriveForm] = useState({ qty: "", price: "" });
@@ -97,29 +154,24 @@ export function SellingToolsPanel({ vendorId, marketId }: { vendorId: string; ma
     } finally { setLoading(false); }
   }
 
-  // ── Duit Pecah ──────────────────────────────────────────────────────────────
-  const [changeAmt, setChangeAmt] = useState("");
-  const PRESET_AMOUNTS = ["10", "20", "50", "100"];
-
-  async function handleChange() {
-    if (!changeAmt) { showToast("Enter an amount.", false); return; }
-    setLoading(true);
-    try {
-      const r = await requestSmallChange(vendorId, marketId, parseFloat(changeAmt));
-      if (r.success) { showToast("Change request sent to nearby vendors!"); setChangeAmt(""); }
-      else showToast(r.error ?? "Failed.", false);
-    } finally { setLoading(false); }
-  }
-
   // ── Record Sale ─────────────────────────────────────────────────────────────
   const [sale, setSale] = useState({ qty: "", price: "", desc: "" });
   const saleTotal = sale.qty && sale.price ? (parseInt(sale.qty) * parseFloat(sale.price)).toFixed(2) : null;
 
   async function handleSale() {
-    if (!sale.qty || !sale.price) { showToast("Fill in quantity and price.", false); return; }
+    if (!sale.qty || !sale.price) {
+      showToast("Fill in quantity and price.", false);
+      return;
+    }
+    const qty = parseInt(sale.qty);
+    const price = parseFloat(sale.price);
+    if (qty <= 0 || price < 0) {
+      showToast("Quantity must be positive and price cannot be negative.", false);
+      return;
+    }
     setLoading(true);
     try {
-      const r = await recordSale(vendorId, marketId, [{ quantity: parseInt(sale.qty), pricePerUnit: parseFloat(sale.price) }]);
+      const r = await recordSale(vendorId, marketId, [{ quantity: qty, pricePerUnit: price }]);
       if (r.success) { showToast("Sale recorded!"); setSale({ qty: "", price: "", desc: "" }); }
       else showToast(r.error ?? "Failed.", false);
     } finally { setLoading(false); }
@@ -159,8 +211,19 @@ export function SellingToolsPanel({ vendorId, marketId }: { vendorId: string; ma
 
           <InputField label="Item name (optional)" type="text" value={flash.item} onChange={(v) => setFlash({ ...flash, item: v })} placeholder="e.g. Mee Goreng" />
           <div className="grid gap-4 sm:grid-cols-2">
-            <InputField label="Original Price (RM)" value={flash.price} onChange={(v) => setFlash({ ...flash, price: v })} placeholder="8.00" />
-            <InputField label="Discount (%)" value={flash.pct} onChange={(v) => setFlash({ ...flash, pct: v })} placeholder="20" />
+            <InputField
+              label="Original Price (RM)"
+              value={flash.price}
+              onChange={(v) => setFlash({ ...flash, price: v })}
+              onBlur={(e) => { if (parseFloat(e.target.value) < 0) showToast("Original price cannot be negative.", false); }}
+              placeholder="8.00" min="0"
+            />
+            <InputField
+              label="Discount (%)"
+              value={flash.pct}
+              onChange={(v) => setFlash({ ...flash, pct: v })}
+              onBlur={(e) => { const p = parseFloat(e.target.value); if (p <= 0 || p > 100) showToast("Discount must be between 1% and 100%.", false); }}
+              placeholder="20" min="1" max="100" />
           </div>
 
           <div className="space-y-1.5">
@@ -182,7 +245,6 @@ export function SellingToolsPanel({ vendorId, marketId }: { vendorId: string; ma
             </div>
           </div>
 
-          {/* Live preview */}
           {flashDiscounted && (
             <div className="rounded-xl border border-amber-400/30 bg-[var(--abyss)] p-4">
               <p className="text-xs text-[var(--muted)] mb-2">Preview</p>
@@ -209,93 +271,105 @@ export function SellingToolsPanel({ vendorId, marketId }: { vendorId: string; ma
 
       {/* ── Pasar-Drive panel ── */}
       {activeTab === "drive" && (
-        <div className="rounded-2xl border border-cyan-500/30 bg-cyan-500/5 p-6 space-y-5">
-          <div>
-            <h2 className="text-lg font-bold text-[var(--text)]">🚗 Pasar-Drive</h2>
-            <p className="mt-1 text-sm text-[var(--muted)]">Join multi-stall curbside pickup orders. Buyers order from you without parking.</p>
-          </div>
+        <div className="space-y-5">
+          {/* Incoming orders section */}
+          <div className="rounded-2xl border border-cyan-500/30 bg-cyan-500/5 p-6 space-y-5">
+            <div>
+              <h2 className="text-lg font-bold text-[var(--text)]">🚗 Incoming Pasar-Drive Orders</h2>
+              <p className="mt-1 text-sm text-[var(--muted)]">Curbside pickup orders from customers. Confirm and prepare items for pickup.</p>
+            </div>
 
-          {!orderId ? (
-            <button onClick={handleCreateDrive} disabled={loading} className="w-full rounded-xl bg-cyan-500 py-3 text-sm font-bold text-white transition-all hover:bg-cyan-400 disabled:opacity-50">
-              {loading ? "Creating…" : "📦 Create Pasar-Drive Order"}
-            </button>
-          ) : (
-            <div className="space-y-4">
-              <div className="rounded-xl border border-[var(--border)] bg-[var(--abyss)] px-4 py-3">
-                <p className="text-xs text-[var(--muted)]">Order ID</p>
-                <p className="font-mono text-sm text-cyan-400">{orderId}</p>
+            {incomingOrders.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-[var(--border)] bg-[var(--abyss)]/50 p-8 text-center">
+                <p className="text-[var(--muted)]">No incoming orders</p>
+                <p className="mt-1 text-xs text-[var(--muted)]">Orders will appear here when customers place Pasar-Drive orders</p>
               </div>
-
-              <div className="grid gap-4 sm:grid-cols-2">
-                <InputField label="Quantity" value={driveForm.qty} onChange={(v) => setDriveForm({ ...driveForm, qty: v })} placeholder="2" />
-                <InputField label="Price per unit (RM)" value={driveForm.price} onChange={(v) => setDriveForm({ ...driveForm, price: v })} placeholder="8.00" />
-              </div>
-
-              <button onClick={handleAddDriveItem} disabled={loading} className="w-full rounded-xl border border-cyan-500/40 bg-cyan-500/10 py-2.5 text-sm font-semibold text-cyan-400 hover:bg-cyan-500/20 disabled:opacity-50">
-                {loading ? "Adding…" : "+ Add Item to Order"}
-              </button>
-
-              {driveItems.length > 0 && (
-                <div className="rounded-xl border border-[var(--border)] bg-[var(--abyss)] divide-y divide-[var(--border)]">
-                  {driveItems.map((item, i) => (
-                    <div key={i} className="flex justify-between px-4 py-2.5 text-sm">
-                      <span className="text-[var(--secondary)]">Item #{i + 1} × {item.qty}</span>
-                      <span className="font-semibold text-cyan-400">RM {(parseInt(item.qty) * parseFloat(item.price)).toFixed(2)}</span>
+            ) : (
+              <div className="space-y-4">
+                {incomingOrders.map((orderItem: any) => {
+                  const order = orderItem.pasar_drive;
+                  return (
+                    <div key={orderItem.id} className="rounded-xl border border-[var(--border)] bg-[var(--abyss)] p-4">
+                      <div className="flex items-start justify-between mb-3">
+                        <div>
+                          <p className="font-semibold text-[var(--text)]">Order #{order.id.slice(-8)}</p>
+                          <p className="text-xs text-[var(--muted)]">{new Date(order.order_time).toLocaleString()}</p>
+                        </div>
+                        <div className={`rounded-full px-2 py-1 text-xs font-bold ${
+                          order.status === "PENDING" ? "bg-yellow-500/20 text-yellow-400" :
+                          order.status === "CONFIRMED" ? "bg-blue-500/20 text-blue-400" :
+                          "bg-green-500/20 text-green-400"
+                        }`}>
+                          {order.status}
+                        </div>
+                      </div>
+                      <div className="bg-[var(--raised)] rounded-lg p-3 mb-3">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-[var(--secondary)]">{orderItem.quantity}x item @ RM {orderItem.price_per_unit}</span>
+                          <span className="font-semibold text-cyan-400">RM {orderItem.subtotal}</span>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        {order.status === "PENDING" && (
+                          <button onClick={() => handleConfirmOrder(order.id)} disabled={loading}
+                            className="flex-1 rounded-lg bg-cyan-500 py-2 text-sm font-bold text-white hover:bg-cyan-400 disabled:opacity-50">
+                            {loading ? "Confirming…" : "✅ Confirm Order"}
+                          </button>
+                        )}
+                        {order.status === "CONFIRMED" && (
+                          <button onClick={() => handleCompleteOrder(order.id)} disabled={loading}
+                            className="flex-1 rounded-lg bg-green-500 py-2 text-sm font-bold text-white hover:bg-green-400 disabled:opacity-50">
+                            {loading ? "Completing…" : "📦 Mark Ready"}
+                          </button>
+                        )}
+                      </div>
                     </div>
-                  ))}
-                  <div className="flex justify-between px-4 py-2.5 text-sm font-bold">
-                    <span className="text-[var(--text)]">Total</span>
-                    <span className="text-cyan-400">
-                      RM {driveItems.reduce((acc, i) => acc + parseInt(i.qty) * parseFloat(i.price), 0).toFixed(2)}
-                    </span>
-                  </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Create order section */}
+          <div className="rounded-2xl border border-cyan-500/20 bg-[var(--lifted)] p-6 space-y-5">
+            <div>
+              <h2 className="text-base font-bold text-[var(--text)]">📦 Create Drive Order</h2>
+              <p className="mt-1 text-sm text-[var(--muted)]">Join multi-stall curbside pickup orders. Buyers order from you without parking.</p>
+            </div>
+            {!orderId ? (
+              <button onClick={handleCreateDrive} disabled={loading} className="w-full rounded-xl bg-cyan-500 py-3 text-sm font-bold text-white transition-all hover:bg-cyan-400 disabled:opacity-50">
+                {loading ? "Creating…" : "📦 Create Pasar-Drive Order"}
+              </button>
+            ) : (
+              <div className="space-y-4">
+                <div className="rounded-xl border border-[var(--border)] bg-[var(--abyss)] px-4 py-3">
+                  <p className="text-xs text-[var(--muted)]">Order ID</p>
+                  <p className="font-mono text-sm text-cyan-400">{orderId}</p>
                 </div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ── Duit Pecah panel ── */}
-      {activeTab === "change" && (
-        <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-6 space-y-5">
-          <div>
-            <h2 className="text-lg font-bold text-[var(--text)]">💰 Duit Pecah</h2>
-            <p className="mt-1 text-sm text-[var(--muted)]">Request small change from nearby vendors. A co-op network among stall owners.</p>
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="block text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">Quick Amount</label>
-            <div className="flex gap-2">
-              {PRESET_AMOUNTS.map((a) => (
-                <button
-                  key={a}
-                  onClick={() => setChangeAmt(a)}
-                  className={`flex-1 rounded-xl border py-2.5 text-sm font-bold transition-all ${
-                    changeAmt === a
-                      ? "border-emerald-400/60 bg-emerald-400/20 text-emerald-400"
-                      : "border-[var(--border)] text-[var(--muted)] hover:border-emerald-400/30"
-                  }`}
-                >
-                  RM {a}
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <InputField label="Quantity" value={driveForm.qty} onChange={(v) => setDriveForm({ ...driveForm, qty: v })} placeholder="2" />
+                  <InputField label="Price per unit (RM)" value={driveForm.price} onChange={(v) => setDriveForm({ ...driveForm, price: v })} placeholder="8.00" />
+                </div>
+                <button onClick={handleAddDriveItem} disabled={loading} className="w-full rounded-xl border border-cyan-500/40 bg-cyan-500/10 py-2.5 text-sm font-semibold text-cyan-400 hover:bg-cyan-500/20 disabled:opacity-50">
+                  {loading ? "Adding…" : "+ Add Item to Order"}
                 </button>
-              ))}
-            </div>
+                {driveItems.length > 0 && (
+                  <div className="rounded-xl border border-[var(--border)] bg-[var(--abyss)] divide-y divide-[var(--border)]">
+                    {driveItems.map((item, i) => (
+                      <div key={i} className="flex justify-between px-4 py-2.5 text-sm">
+                        <span className="text-[var(--secondary)]">Item #{i + 1} × {item.qty}</span>
+                        <span className="font-semibold text-cyan-400">RM {(parseInt(item.qty) * parseFloat(item.price)).toFixed(2)}</span>
+                      </div>
+                    ))}
+                    <div className="flex justify-between px-4 py-2.5 text-sm font-bold">
+                      <span className="text-[var(--text)]">Total</span>
+                      <span className="text-cyan-400">RM {driveItems.reduce((acc, i) => acc + parseInt(i.qty) * parseFloat(i.price), 0).toFixed(2)}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
-
-          <InputField label="Or enter custom amount (RM)" value={changeAmt} onChange={setChangeAmt} placeholder="25.00" />
-
-          {changeAmt && (
-            <div className="rounded-xl border border-emerald-500/30 bg-[var(--abyss)] p-4 text-center">
-              <p className="text-xs text-[var(--muted)]">Requesting change of</p>
-              <p className="text-3xl font-bold text-emerald-400">RM {parseFloat(changeAmt || "0").toFixed(2)}</p>
-              <p className="text-xs text-[var(--muted)] mt-1">Request will be broadcast to all vendors within 50m</p>
-            </div>
-          )}
-
-          <button onClick={handleChange} disabled={loading} className="w-full rounded-xl bg-emerald-500 py-3 text-sm font-bold text-white transition-all hover:bg-emerald-400 disabled:opacity-50">
-            {loading ? "Sending…" : "🤝 Broadcast Request"}
-          </button>
         </div>
       )}
 
@@ -306,13 +380,22 @@ export function SellingToolsPanel({ vendorId, marketId }: { vendorId: string; ma
             <h2 className="text-lg font-bold text-[var(--text)]">📊 Record Sale</h2>
             <p className="mt-1 text-sm text-[var(--muted)]">Log every transaction to power your analytics and AI recommendations.</p>
           </div>
-
           <InputField label="Item / Description (optional)" type="text" value={sale.desc} onChange={(v) => setSale({ ...sale, desc: v })} placeholder="e.g. Mee Goreng Special" />
           <div className="grid gap-4 sm:grid-cols-2">
-            <InputField label="Quantity sold" value={sale.qty} onChange={(v) => setSale({ ...sale, qty: v })} placeholder="3" />
-            <InputField label="Price per unit (RM)" value={sale.price} onChange={(v) => setSale({ ...sale, price: v })} placeholder="7.50" />
+            <InputField
+              label="Quantity sold"
+              value={sale.qty}
+              onChange={(v) => setSale({ ...sale, qty: v })}
+              onBlur={(e) => { if (parseInt(e.target.value) <= 0) showToast("Quantity must be a positive number.", false); }}
+              placeholder="3" min="1"
+            />
+            <InputField
+              label="Price per unit (RM)"
+              value={sale.price}
+              onChange={(v) => setSale({ ...sale, price: v })}
+              onBlur={(e) => { if (parseFloat(e.target.value) < 0) showToast("Price per unit cannot be negative.", false); }}
+              placeholder="7.50" min="0" />
           </div>
-
           {saleTotal && (
             <div className="rounded-xl border border-pink-500/30 bg-[var(--abyss)] p-4">
               <div className="flex items-center justify-between">
@@ -324,7 +407,6 @@ export function SellingToolsPanel({ vendorId, marketId }: { vendorId: string; ma
               </div>
             </div>
           )}
-
           <button onClick={handleSale} disabled={loading} className="w-full rounded-xl bg-pink-500 py-3 text-sm font-bold text-white transition-all hover:bg-pink-400 disabled:opacity-50">
             {loading ? "Saving…" : "✓ Record This Sale"}
           </button>

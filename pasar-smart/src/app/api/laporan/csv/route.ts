@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { labelDaerah } from "@/lib/melaka";
 import { senToRmLabel } from "@/lib/money";
-import { getAgregasiMengikutDaerah, getButiranPenugasan } from "@/lib/reports";
+import { getAgregasiMengikutDaerah, getButiranPenugasan, getButiranPenugasanByDate, getAgregasiMengikutDaerahByDate } from "@/lib/reports";
 import { ASSIGNMENT_STATUS_LABEL, type AssignmentStatus } from "@/lib/status";
 
 function csvEscape(s: string): string {
@@ -22,7 +22,8 @@ export async function GET(req: Request) {
 
   try {
     if (jenis === "daerah") {
-      const data = await getAgregasiMengikutDaerah();
+      const date = searchParams.get("date");
+      const data = date ? await getAgregasiMengikutDaerahByDate(date) : await getAgregasiMengikutDaerah();
       const headers = [
         "Daerah",
         "Bilangan penugasan",
@@ -36,17 +37,19 @@ export async function GET(req: Request) {
         senToRmLabel(r.anggaran_yuran_sen),
       ]);
       const body = toCsv(headers, rows);
+      const filename = date ? `pasar-smart_ringkasan-daerah_${date}.csv` : `pasar-smart_ringkasan-daerah.csv`;
       return new NextResponse(body, {
         status: 200,
         headers: {
           "Content-Type": "text/csv; charset=utf-8",
-          "Content-Disposition": `attachment; filename="pasar-smart_ringkasan-daerah.csv"`,
+          "Content-Disposition": `attachment; filename="${filename}"`,
         },
       });
     }
 
     if (jenis === "butiran") {
-      const data = await getButiranPenugasan();
+      const date = searchParams.get("date");
+      const data = date ? await getButiranPenugasanByDate(date) : await getButiranPenugasan();
       const headers = [
         "Penjaja",
         "Jenis jualan",
@@ -66,11 +69,14 @@ export async function GET(req: Request) {
         r.petak ?? "",
       ]);
       const body = toCsv(headers, rows);
+      const filename = date
+        ? `pasar-smart_butiran-penugasan_${date}.csv`
+        : `pasar-smart_butiran-penugasan.csv`;
       return new NextResponse(body, {
         status: 200,
         headers: {
           "Content-Type": "text/csv; charset=utf-8",
-          "Content-Disposition": `attachment; filename="pasar-smart_butiran-penugasan.csv"`,
+          "Content-Disposition": `attachment; filename="${filename}"`,
         },
       });
     }

@@ -5,13 +5,9 @@ VALUES
   ('Craft Melaka Weave', NULL, NULL, 'craft@example.com', 'Kraftangan & cenderamata', 4200, 'AKTIF');
 
 -- Seed data for Market table
-INSERT INTO market (nama_pasar, daerah, alamat, hari_operasi, status)
+INSERT INTO market (id, nama_pasar, daerah, alamat, hari_operasi, status)
 VALUES
-  ('Pasar Malam Bandaraya Melaka', 'MELAKA_TENGAH', 'Kawasan bandar', 'Jumaat & Sabtu', 'BEROPERASI'),
-  ('Pasar Malam Universiti', 'BUKIT_BERUANG', NULL, 'Rabu & Khamis', 'BEROPERASI');
+  ('demo-market-1', 'Demo Market', 'MELAKA_TENGAH', 'Kawasan bandar', 'Setiap Hari', 'BEROPERASI'),
+  ('mkt-2', 'Pasar Malam Bandaraya Melaka', 'MELAKA_TENGAH', 'Kawasan bandar', 'Jumaat & Sabtu', 'BEROPERASI'),
+  ('mkt-3', 'Pasar Malam Universiti', 'BUKIT_BERUANG', NULL, 'Rabu & Khamis', 'BEROPERASI');
 
--- Get the vendor and market IDs for the assignment
--- Note: This seed assumes the above data was inserted first
--- Assignments will be created based on the IDs returned from the above inserts
--- Due to the dynamic nature of UUIDs, you may need to manually adjust these IDs
--- or use the application UI to create assignments

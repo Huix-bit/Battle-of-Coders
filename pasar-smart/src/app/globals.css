@@ -12,10 +12,10 @@
   --raised:      #341F6A;   /* Raised Indigo — hover / selected state  */
 
   /* ── Text ── */
-  --foreground:  #F5F2FF;   /* Primary text  — headlines               */
-  --text:        #F5F2FF;
-  --secondary:   #C8C3F0;   /* Secondary     — descriptions, labels    */
-  --muted:       #7F77DD;   /* Muted         — hints, placeholders     */
+  --foreground:  #FFFFFF;   /* Primary text  — headlines               */
+  --text:        #FFFFFF;
+  --secondary:   #FFFFFF;   /* Secondary     — descriptions, labels    */
+  --muted:       #FFFFFF;   /* Muted         — hints, placeholders     */
 
   /* ── Accent & Action ── */
   --accent:        #F5A623; /* Pasar Amber   — CTA, prices, highlights */

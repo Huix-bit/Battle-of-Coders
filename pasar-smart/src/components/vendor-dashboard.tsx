@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { toggleStallPresence, getVendorStallStatus } from "@/actions/stallStatus";
+import { getVendorStallStatus, toggleStallPresence } from "@/actions/stallStatus";
 import { getDailySalesSummary, getRecommendations } from "@/actions/analytics";
 import { getActiveFlashSales } from "@/actions/sellingTools";
 
@@ -13,47 +13,71 @@ interface DashboardStats {
   avgTransactionValue: number;
 }
 
-const PEAK_HOURS = [
-  { h: "17", pct: 20 }, { h: "18", pct: 45 }, { h: "19", pct: 70 },
-  { h: "20", pct: 100 }, { h: "21", pct: 85 }, { h: "22", pct: 55 },
-  { h: "23", pct: 30 },
-];
+function getCookie(name: string): string | null {
+  if (typeof document === 'undefined') return null;
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop()?.split(';').shift() ?? null;
+  return null;
+}
 
 const REC_ICONS: Record<string, string> = {
   pricing: "💰", positioning: "📍", bundling: "🎁", timing: "⏰", default: "🤖",
 };
 
-export function VendorDashboard({ vendorId, marketId }: { vendorId: string; marketId: string }) {
+export function VendorDashboard({ marketId, vendorId: vendorIdProp }: { marketId: string; vendorId?: string }) {
+  const [vendorId, setVendorId] = useState<string | null>(vendorIdProp ?? null);
   const [isPresent, setIsPresent] = useState(false);
   const [loading, setLoading] = useState(false);
   const [dataLoading, setDataLoading] = useState(true);
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [recommendations, setRecommendations] = useState<any[]>([]);
   const [activeFlashSales, setActiveFlashSales] = useState<any[]>([]);
-  const [statusNote, setStatusNote] = useState("Open for business");
-  const [showStatusMenu, setShowStatusMenu] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [toggleError, setToggleError] = useState<string | null>(null);
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setTick((c) => c + 1), 1000);
+    return () => clearInterval(t);
+  }, []);
 
-  const STATUS_NOTES = [
-    "Open for business", "Slightly busy — orders may be slow",
-    "Very busy — queue forming!", "Running low on ingredients", "Sold out — closing soon",
-  ];
+  const refreshData = () => setRefreshTrigger(prev => prev + 1);
+
+  function flashTimeLeft(endIso: string): string {
+    void tick;
+    const ms = new Date(endIso).getTime() - Date.now();
+    if (ms <= 0) return "Ended";
+    const totalSec = Math.floor(ms / 1000);
+    const m = Math.floor(totalSec / 60);
+    const s = totalSec % 60;
+    return `${m}:${s.toString().padStart(2, "0")} left`;
+  }
 
   useEffect(() => {
+    // Read vendor ID from cookie; fall back to the prop if not in cookie.
+    const id = getCookie("vendor-id") ?? vendorIdProp ?? null;
+    setVendorId(id);
+
     const load = async () => {
+      if (!id) {
+        setDataLoading(false);
+        return; // Don't fetch data if there's no vendor ID
+      }
+
       setDataLoading(true);
       try {
-        const status = await getVendorStallStatus(vendorId, marketId);
-        if (status) setIsPresent(status.isPresent);
-        const daily = await getDailySalesSummary(vendorId, marketId);
+        const status = await getVendorStallStatus(id, marketId);
+        if (status) setIsPresent(status.is_present ?? false);
+        const daily = await getDailySalesSummary(id, marketId);
         setStats({
           totalSales: daily.totalSales,
           transactionCount: daily.transactionCount,
           peakHour: daily.peakHour ? parseInt(daily.peakHour) : null,
           avgTransactionValue: daily.avgTransactionValue,
         });
-        const recs = await getRecommendations(vendorId);
+        const recs = await getRecommendations(id);
         setRecommendations(recs.slice(0, 3));
-        const flash = await getActiveFlashSales(vendorId);
+        const flash = await getActiveFlashSales(id);
         setActiveFlashSales(flash);
       } catch (e) {
         console.error(e);
@@ -61,23 +85,65 @@ export function VendorDashboard({ vendorId, marketId }: { vendorId: string; mark
         setDataLoading(false);
       }
     };
-    load();
-    const id = setInterval(load, 30000);
-    return () => clearInterval(id);
-  }, [vendorId, marketId]);
+
+    // Check if flash sale was just created
+    if (typeof window !== 'undefined') {
+      const flashCreated = sessionStorage.getItem('flashSaleCreated');
+      if (flashCreated) {
+        sessionStorage.removeItem('flashSaleCreated');
+        // Refresh immediately if flash sale was just created
+        load(); // Load data now, then continue to set up the interval
+      }
+    }
+
+    load(); // Initial load
+    const intervalId = setInterval(load, 30000); // Set up refresh interval
+    return () => clearInterval(intervalId); // Clean up on unmount
+  }, [marketId, refreshTrigger]);
 
   async function handleToggle() {
+    if (!vendorId) {
+      setToggleError("Vendor ID not found. Please sign out and sign back in.");
+      return;
+    }
     setLoading(true);
+    setToggleError(null);
     try {
       const result = await toggleStallPresence(vendorId, marketId, `assign-${vendorId}-${marketId}`, !isPresent);
-      if (result.success) setIsPresent(!isPresent);
+      if (result.success) {
+        setIsPresent(!isPresent);
+      } else {
+        setToggleError(result.error ?? "Failed to update stall status. Please try again.");
+      }
+    } catch (e) {
+      setToggleError(e instanceof Error ? e.message : "Unexpected error. Please try again.");
     } finally {
       setLoading(false);
     }
   }
 
+  // If the vendorId cookie isn't set, we can't show the correct data.
+  // This can happen if the user isn't logged in as a mock vendor.
+  if (!vendorId && !dataLoading) {
+    return (
+      <div className="rounded-2xl border border-dashed border-[var(--border)] p-8 text-center">
+        <p className="text-lg font-semibold text-red-400">Vendor Not Found</p>
+        <p className="mt-2 text-sm text-[var(--muted)]">Could not find a vendor ID in your session. Please try signing out and signing back in as a vendor.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8">
+
+      {/* ── Toggle error banner ── */}
+      {toggleError && (
+        <div className="flex items-start gap-3 rounded-xl border border-[#E8342A]/40 bg-[#E8342A]/10 px-4 py-3 text-sm text-[#E8342A]">
+          <span className="mt-0.5 shrink-0">✕</span>
+          <span>{toggleError}</span>
+          <button onClick={() => setToggleError(null)} className="ml-auto shrink-0 opacity-60 hover:opacity-100">✕</button>
+        </div>
+      )}
 
       {/* ── Status toggle card ── */}
       <div className={`relative overflow-hidden rounded-2xl border p-6 transition-all duration-500 ${
@@ -92,44 +158,19 @@ export function VendorDashboard({ vendorId, marketId }: { vendorId: string; mark
           <div>
             <p className="text-xs font-bold uppercase tracking-widest text-[var(--muted)]">Stall Status</p>
             <h2 className="mt-1 text-2xl font-bold text-[var(--text)]">
-              {isPresent ? "🟢 I'm Here — Active" : "⚫ Closed"}
+              {isPresent ? "🟢 Stall is Open" : "⚫ Closed"}
             </h2>
             <p className="mt-1 text-sm text-[var(--muted)]">
-              {isPresent ? statusNote : "Toggle on to appear on the live market map"}
+              {isPresent ? "Your stall is now visible to customers" : "Tap the button to open your stall"}
             </p>
-            {isPresent && (
-              <div className="relative mt-3">
-                <button
-                  onClick={() => setShowStatusMenu(!showStatusMenu)}
-                  className="flex items-center gap-1 rounded-lg border border-[var(--border)] bg-[var(--abyss)]/50 px-3 py-1.5 text-xs text-[var(--secondary)] hover:border-[var(--accent)]/40"
-                >
-                  📝 Update status note <span className="text-[var(--muted)]">▾</span>
-                </button>
-                {showStatusMenu && (
-                  <div className="absolute left-0 top-9 z-20 w-64 rounded-xl border border-[var(--border)] bg-[var(--abyss)] shadow-xl">
-                    {STATUS_NOTES.map((n) => (
-                      <button
-                        key={n}
-                        onClick={() => { setStatusNote(n); setShowStatusMenu(false); }}
-                        className={`block w-full px-4 py-2.5 text-left text-xs transition-colors hover:bg-[var(--raised)] ${
-                          n === statusNote ? "text-[var(--accent)]" : "text-[var(--secondary)]"
-                        }`}
-                      >
-                        {n === statusNote ? "✓ " : ""}{n}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
           </div>
           <button
             onClick={handleToggle}
             disabled={loading}
-            className={`relative h-16 w-32 shrink-0 rounded-2xl text-sm font-bold transition-all duration-300 disabled:opacity-60 ${
+            className={`relative h-16 w-36 shrink-0 rounded-2xl text-sm font-bold transition-all duration-300 disabled:opacity-60 ${
               isPresent
                 ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/40 hover:bg-emerald-600"
-                : "bg-[var(--raised)] text-[var(--muted)] hover:bg-[var(--accent)]/20 hover:text-[var(--accent)]"
+                : "bg-transparent border-2 border-[var(--border)] text-[var(--muted)] hover:border-emerald-500/50 hover:text-emerald-400"
             }`}
           >
             {loading ? (
@@ -137,7 +178,17 @@ export function VendorDashboard({ vendorId, marketId }: { vendorId: string; mark
                 <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
                 Updating
               </span>
-            ) : isPresent ? "✓ OPEN\nToggle off" : "CLOSED\nTap to open"}
+            ) : isPresent ? (
+              <div className="flex flex-col items-center justify-center gap-1">
+                <span>✓ OPEN</span>
+                <span className="text-[11px] font-normal">Tap to close</span>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center gap-1">
+                <span>OPEN STALL</span>
+                <span className="text-[11px] font-normal">Tap to open</span>
+              </div>
+            )}
           </button>
         </div>
       </div>
@@ -159,23 +210,6 @@ export function VendorDashboard({ vendorId, marketId }: { vendorId: string; mark
         ))}
       </div>
 
-      {/* ── Peak hours bar chart ── */}
-      <div className="rounded-2xl border border-[var(--border)] bg-[var(--lifted)] p-6">
-        <h3 className="mb-5 font-semibold text-[var(--accent-strong)]">⏰ Hourly Traffic Pattern</h3>
-        <div className="flex items-end gap-2 h-28">
-          {PEAK_HOURS.map((h) => (
-            <div key={h.h} className="flex flex-1 flex-col items-center gap-1">
-              <div
-                className="w-full rounded-t-md bg-gradient-to-t from-[var(--accent)] to-amber-300 transition-all duration-700"
-                style={{ height: `${h.pct}%`, opacity: h.pct === 100 ? 1 : 0.4 + h.pct / 200 }}
-              />
-              <span className="text-[10px] text-[var(--muted)]">{h.h}</span>
-            </div>
-          ))}
-        </div>
-        <p className="mt-3 text-xs text-[var(--muted)]">Typical pattern for night markets in Melaka — 20:00 is peak. Plan flash sales before 19:30.</p>
-      </div>
-
       {/* ── Active flash sales ── */}
       {activeFlashSales.length > 0 && (
         <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-6">
@@ -184,12 +218,13 @@ export function VendorDashboard({ vendorId, marketId }: { vendorId: string; mark
             {activeFlashSales.map((sale) => (
               <div key={sale.id} className="flex items-center justify-between rounded-xl border border-[var(--border)] bg-[var(--abyss)]/50 p-4">
                 <div>
-                  <p className="font-semibold text-[var(--text)]">{sale.itemName ?? "Flash Deal"}</p>
-                  <p className="text-sm text-[var(--muted)]">{sale.discountPercentage}% off</p>
+                  <p className="font-semibold text-[var(--text)]">{sale.item_id ? "Menu Item" : "Flash Deal"}</p>
+                  <p className="text-sm text-[var(--muted)]">{sale.discount_percentage}% off</p>
+                  <p className="mt-1 font-mono text-xs font-bold text-amber-300">{flashTimeLeft(sale.end_time)}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-lg font-bold text-amber-400">RM {sale.discountedPrice?.toFixed(2)}</p>
-                  <p className="text-xs text-[var(--muted)]">{sale.quantitySold}/{sale.quantity} sold</p>
+                  <p className="text-lg font-bold text-amber-400">RM {Number(sale.discounted_price).toFixed(2)}</p>
+                  <p className="text-xs text-[var(--muted)]">{sale.quantity_sold}/{sale.quantity || "∞"} sold</p>
                 </div>
               </div>
             ))}
@@ -255,10 +290,7 @@ export function VendorDashboard({ vendorId, marketId }: { vendorId: string; mark
           ⚡ Launch Flash Sale
         </Link>
         <Link href="/vendor/layout" className="rounded-xl border border-[var(--border)] bg-[var(--lifted)] px-4 py-2.5 text-sm font-medium text-[var(--text)] transition-all hover:border-[var(--accent)]/40 hover:bg-[var(--raised)]">
-          🗺️ View Market Map
-        </Link>
-        <Link href="/vendor/tools" className="rounded-xl border border-[var(--border)] bg-[var(--lifted)] px-4 py-2.5 text-sm font-medium text-[var(--text)] transition-all hover:border-[var(--accent)]/40 hover:bg-[var(--raised)]">
-          💰 Request Duit Pecah
+          🗺️ Market Map {activeFlashSales.length > 0 ? "(flash on stall)" : ""}
         </Link>
       </div>
     </div>

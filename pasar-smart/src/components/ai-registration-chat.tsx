@@ -148,10 +148,10 @@ export function AIRegistrationChat() {
         setMessages((prev) => [...prev, {
           role: "assistant",
           content:
-            `🎉 **Tahniah!** Pendaftaran anda berjaya!\n\nID Penjaja: \`${result.vendorId}\`\n\n` +
+            `🎉 **Tahniah!** Profil perniagaan anda telah berjaya disimpan!\n\n` +
             (result.mock
-              ? "Maklumat anda telah direkodkan. Sila hubungi pentadbir untuk pengesahan."
-              : "Sila tunggu pengesahan dari pentadbir. Anda boleh mengurus gerai anda melalui portal vendor."),
+              ? "⚠️ Mod demo — data tidak disimpan ke pangkalan data sebenar."
+              : `✅ Maklumat perniagaan, kategori, dan menu anda telah dikemas kini dalam sistem.\n\nAnda boleh terus ke **Dashboard** untuk membuka gerai dan melancarkan flash sale.`),
         }]);
         setRegistrationDone(true);
         setShowSuccess(true);
@@ -168,7 +168,7 @@ export function AIRegistrationChat() {
     : 0;
 
   return (
-    <div className="relative flex flex-col w-full h-full min-h-screen bg-gradient-to-br from-slate-950 via-[#1a0a2e] to-slate-950 overflow-hidden">
+    <div className="relative flex flex-col w-full h-full bg-gradient-to-br from-slate-950 via-[#1a0a2e] to-slate-950 overflow-hidden">
 
       {/* Ambient blobs */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
@@ -184,15 +184,23 @@ export function AIRegistrationChat() {
             <div className="mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-emerald-400 to-green-600">
               <span className="text-4xl">✓</span>
             </div>
-            <h2 className="mb-2 text-2xl font-bold text-white">Pendaftaran Berjaya!</h2>
-            <p className="mb-1 text-sm text-white/60">Bisnes anda telah didaftarkan dalam sistem Pasar Smart.</p>
-            <p className="mb-6 text-xs text-purple-400">Sila tunggu pengesahan dari pentadbir.</p>
-            <button
-              onClick={() => setShowSuccess(false)}
-              className="w-full rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 py-2.5 text-sm font-bold text-white hover:opacity-90 transition-all"
-            >
-              Tutup
-            </button>
+            <h2 className="mb-2 text-2xl font-bold text-white">Profil Dikemas Kini!</h2>
+            <p className="mb-1 text-sm text-white/60">Nama perniagaan, kategori, dan menu anda telah disimpan.</p>
+            <p className="mb-6 text-xs text-purple-400">Pergi ke Dashboard untuk membuka gerai anda sekarang.</p>
+            <div className="flex flex-col gap-2">
+              <a
+                href="/vendor/dashboard"
+                className="w-full rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 py-2.5 text-sm font-bold text-white hover:opacity-90 transition-all text-center"
+              >
+                📊 Pergi ke Dashboard
+              </a>
+              <button
+                onClick={() => setShowSuccess(false)}
+                className="w-full rounded-xl border border-white/10 py-2.5 text-sm font-medium text-white/60 hover:bg-white/5 transition-all"
+              >
+                Tutup
+              </button>
+            </div>
           </div>
         </div>
       )}

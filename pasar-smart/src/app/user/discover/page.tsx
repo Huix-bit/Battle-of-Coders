@@ -2,32 +2,9 @@
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { upsertItem, cartCount, getCart } from "@/lib/cartStore";
+import { supabase, SUPABASE_CONFIGURED } from "@/lib/supabaseClient";
 
 const CATEGORIES = ["All", "Noodles", "Rice", "Grilled", "Drinks", "Kuih", "Fruits", "Seafood", "Snacks"];
-
-const STALLS = [
-  { id: 1, name: "Mee Goreng Haji Ali",  category: "Noodles",  rating: 4.8, reviews: 312, crowd: "high",   price: "RM 6–8",   tags: ["Trending 🔥", "Bestseller"], open: true, flash: false, desc: "Legendary mamak-style fried noodles with the original secret sauce.", emoji: "🍜", wait: "20 min" },
-  { id: 2, name: "Ayam Percik Siti",     category: "Grilled",  rating: 4.7, reviews: 198, crowd: "medium", price: "RM 10–15", tags: ["Flash ⚡ 20% off"],           open: true, flash: true,  desc: "Charcoal-grilled chicken marinated overnight in coconut spices.",  emoji: "🍗", wait: "10 min" },
-  { id: 3, name: "Cendol Pak Din",       category: "Drinks",   rating: 4.9, reviews: 445, crowd: "high",   price: "RM 3–5",   tags: ["Top Rated ⭐", "Trending 🔥"],  open: true, flash: false, desc: "Iconic Melaka cendol with freshly pressed coconut milk and gula melaka.", emoji: "🧊", wait: "5 min" },
-  { id: 4, name: "Nasi Lemak Wangi",     category: "Rice",     rating: 4.6, reviews: 267, crowd: "low",    price: "RM 5–12",  tags: ["Open Now ✓"],               open: true, flash: false, desc: "Fragrant coconut rice with crispy ikan bilis, egg, and sambal.",   emoji: "🍚", wait: "3 min" },
-  { id: 5, name: "Kuih Muih Puan Ros",   category: "Kuih",     rating: 4.5, reviews: 134, crowd: "low",    price: "RM 1–3",   tags: ["Traditional"],              open: true, flash: false, desc: "Handmade traditional Malay kuih — over 15 varieties every night.", emoji: "🧁", wait: "2 min" },
-  { id: 6, name: "Rojak Buah Pak Zaini", category: "Fruits",   rating: 4.7, reviews: 221, crowd: "medium", price: "RM 5–8",   tags: ["Flash ⚡ 15% off"],          open: true, flash: true,  desc: "Fresh tropical fruits tossed in prawn paste sauce with peanuts.",  emoji: "🥭", wait: "8 min" },
-  { id: 7, name: "Satay Jamilah",        category: "Grilled",  rating: 4.8, reviews: 389, crowd: "high",   price: "RM 8–20",  tags: ["Trending 🔥", "Bestseller"], open: true, flash: false, desc: "Marinated beef and chicken skewers grilled over charcoal. Min 10 sticks.", emoji: "🍢", wait: "15 min" },
-  { id: 8, name: "Keropok Lekor Azri",   category: "Snacks",   rating: 4.4, reviews: 88,  crowd: "low",    price: "RM 3–6",   tags: ["Closing soon ⚠️"],          open: true, flash: false, desc: "Terengganu-style fish sausage — deep fried or grilled to order.",  emoji: "🐟", wait: "5 min" },
-  { id: 9, name: "Ikan Bakar Hamidah",   category: "Seafood",  rating: 4.9, reviews: 501, crowd: "high",   price: "RM 15–35", tags: ["Top Rated ⭐", "Must Try"],   open: true, flash: false, desc: "Whole fish grilled on banana leaf with 6 sambal variants. Order early!", emoji: "🐠", wait: "25 min" },
-];
-
-const STALL_MENUS: Record<number, { id: string; name: string; price: number; emoji: string }[]> = {
-  1: [{ id: "1-1", name: "Mee Goreng Special", price: 7.00, emoji: "🍜" }, { id: "1-2", name: "Teh Tarik", price: 2.50, emoji: "🧉" }],
-  2: [{ id: "2-1", name: "Ayam Percik (1/2)", price: 12.00, emoji: "🍗" }, { id: "2-2", name: "Nasi Putih", price: 1.50, emoji: "🍚" }],
-  3: [{ id: "3-1", name: "Cendol Besar", price: 4.50, emoji: "🧊" }, { id: "3-2", name: "Cendol Kecil", price: 3.00, emoji: "🧊" }],
-  4: [{ id: "4-1", name: "Nasi Lemak Ayam", price: 10.00, emoji: "🍚" }, { id: "4-2", name: "Nasi Lemak Basic", price: 5.00, emoji: "🍚" }],
-  5: [{ id: "5-1", name: "Mixed Kuih (5 pcs)", price: 5.00, emoji: "🧁" }, { id: "5-2", name: "Kuih à la carte", price: 1.00, emoji: "🧁" }],
-  6: [{ id: "6-1", name: "Rojak Besar", price: 7.00, emoji: "🥭" }, { id: "6-2", name: "Rojak Kecil", price: 5.00, emoji: "🥭" }],
-  7: [{ id: "7-1", name: "Satay 10 pcs Mixed", price: 13.00, emoji: "🍢" }, { id: "7-2", name: "Satay 20 pcs", price: 25.00, emoji: "🍢" }],
-  8: [{ id: "8-1", name: "Keropok Lekor", price: 5.00, emoji: "🐟" }, { id: "8-2", name: "Keropok Goreng", price: 4.00, emoji: "🐟" }],
-  9: [{ id: "9-1", name: "Ikan Bakar Siakap", price: 30.00, emoji: "🐠" }, { id: "9-2", name: "Sambal Extra", price: 3.00, emoji: "🌶️" }],
-};
 
 const FOOD_TRAILS = [
   { title: "Budget Bites Trail", budget: "Under RM 20", stops: 4, desc: "Cendol → Kuih Muih → Keropok Lekor → Nasi Lemak", icon: "💚", color: "from-emerald-500/15 to-teal-500/15", border: "border-emerald-500/30" },
@@ -38,27 +15,194 @@ const FOOD_TRAILS = [
 const CROWD_COLOR: Record<string, string> = { high: "text-red-400 bg-red-400/10", medium: "text-amber-400 bg-amber-400/10", low: "text-emerald-400 bg-emerald-400/10" };
 const CROWD_LABEL: Record<string, string> = { high: "Busy", medium: "Moderate", low: "Quiet" };
 
+function categoryEmoji(cat: string): string {
+  const c = cat.toLowerCase();
+  if (c.includes("noodle") || c.includes("mee") || c.includes("pasta")) return "🍜";
+  if (c.includes("rice") || c.includes("nasi")) return "🍚";
+  if (c.includes("grill") || c.includes("bakar") || c.includes("ayam") || c.includes("satay")) return "🍗";
+  if (c.includes("drink") || c.includes("air") || c.includes("minum") || c.includes("beverage")) return "🥤";
+  if (c.includes("kuih") || c.includes("dessert") || c.includes("sweet") || c.includes("cake")) return "🧁";
+  if (c.includes("fruit") || c.includes("buah") || c.includes("rojak")) return "🥭";
+  if (c.includes("snack") || c.includes("keropok") || c.includes("crispy")) return "🍿";
+  if (c.includes("seafood") || c.includes("ikan") || c.includes("fish") || c.includes("prawn")) return "🐠";
+  return "🍽️";
+}
+
+type MenuItem = { id: string; name: string; price: number; emoji: string };
+
+type Stall = {
+  id: string;
+  name: string;
+  category: string;
+  open: boolean;
+  flash: boolean;
+  flashDiscount: number | null;
+  rating: number;
+  reviews: number;
+  crowd: "high" | "medium" | "low";
+  price: string;
+  tags: string[];
+  desc: string;
+  emoji: string;
+  wait: string;
+  menu: MenuItem[];
+};
+
 export default function DiscoverPage() {
   const [cat, setCat] = useState("All");
   const [search, setSearch] = useState("");
   const [openOnly, setOpenOnly] = useState(false);
   const [flashOnly, setFlashOnly] = useState(false);
 
-  // which stall's menu is open
-  const [activeStall, setActiveStall] = useState<number | null>(null);
-  // local qty selection inside the picker (keyed by item id)
+  const [stalls, setStalls] = useState<Stall[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const [activeStall, setActiveStall] = useState<string | null>(null);
   const [pickerQty, setPickerQty] = useState<Record<string, number>>({});
-  // cart item count for the badge
   const [totalInCart, setTotalInCart] = useState(0);
-  // toast message
   const [toast, setToast] = useState<string | null>(null);
 
-  // Read initial cart count from localStorage on mount
   useEffect(() => {
     setTotalInCart(cartCount());
   }, []);
 
-  const filtered = STALLS.filter((s) => {
+  useEffect(() => {
+    if (!SUPABASE_CONFIGURED) {
+      setLoading(false);
+      return;
+    }
+
+    async function fetchStalls() {
+      setLoading(true);
+      try {
+        // 1. All active vendors
+        const { data: vendors, error: vErr } = await supabase
+          .from("vendor")
+          .select("id, nama_perniagaan, jenis_jualan, email")
+          .eq("status", "AKTIF");
+        if (vErr) throw vErr;
+        if (!vendors || vendors.length === 0) { setStalls([]); return; }
+
+        const vendorIds = vendors.map((v: any) => v.id);
+
+        // 2. Which vendors are currently open (stall toggled on)
+        const { data: statuses } = await supabase
+          .from("stall_status")
+          .select("vendor_id, is_present")
+          .in("vendor_id", vendorIds);
+        const openSet = new Set(
+          (statuses ?? []).filter((r: any) => r.is_present).map((r: any) => r.vendor_id)
+        );
+
+        // 3. Active flash sales
+        const now = new Date().toISOString();
+        const { data: flashSales } = await supabase
+          .from("flash_sale")
+          .select("id, vendor_id, discounted_price, original_price, discount_percentage, end_time, item_name")
+          .in("vendor_id", vendorIds)
+          .eq("is_active", true)
+          .gt("end_time", now);
+
+        // Best flash deal per vendor (for badge/price display)
+        const flashMap = new Map<string, { discount: number; price: number }>();
+        // All active flash sale items per vendor (for cart menu)
+        const flashItemsMap = new Map<string, { id: string; name: string; price: number; origPrice: number; discount: number }[]>();
+        for (const fs of (flashSales ?? [])) {
+          const disc = Number(fs.discount_percentage ?? 0);
+          const existing = flashMap.get(fs.vendor_id);
+          if (!existing || disc > existing.discount) {
+            flashMap.set(fs.vendor_id, { discount: disc, price: Number(fs.discounted_price) });
+          }
+          const list = flashItemsMap.get(fs.vendor_id) ?? [];
+          list.push({
+            id: fs.id,
+            name: fs.item_name?.trim() || "Flash Deal",
+            price: Number(fs.discounted_price),
+            origPrice: Number(fs.original_price),
+            discount: disc,
+          });
+          flashItemsMap.set(fs.vendor_id, list);
+        }
+
+        // 4. Menu items per vendor
+        const { data: menuItems } = await supabase
+          .from("vendor_menu")
+          .select("id, vendor_id, item_name, price, category")
+          .in("vendor_id", vendorIds)
+          .eq("is_available", true);
+        const menuMap = new Map<string, MenuItem[]>();
+        for (const item of (menuItems ?? [])) {
+          const list = menuMap.get(item.vendor_id) ?? [];
+          list.push({
+            id: item.id,
+            name: item.item_name,
+            price: Number(item.price),
+            emoji: categoryEmoji(item.category ?? ""),
+          });
+          menuMap.set(item.vendor_id, list);
+        }
+
+        // 5. Build stall objects
+        const built: Stall[] = vendors.map((v: any) => {
+          const isOpen = openSet.has(v.id);
+          const flashInfo = flashMap.get(v.id) ?? null;
+          const tags: string[] = [];
+          if (flashInfo) tags.push(`Flash ⚡ ${flashInfo.discount > 0 ? flashInfo.discount + "% off" : "Deal"}`);
+          if (isOpen) tags.push("Open Now ✓");
+
+          // Prefer vendor_menu; fall back to flash sale items as purchasable entries
+          const vendorMenuItems = menuMap.get(v.id) ?? [];
+          const flashItems = (flashItemsMap.get(v.id) ?? []).map((fs) => ({
+            id: fs.id,
+            name: `${fs.name} (Flash Sale)`,
+            price: fs.price,
+            emoji: categoryEmoji(v.jenis_jualan ?? ""),
+          }));
+          const menu: MenuItem[] = vendorMenuItems.length > 0 ? vendorMenuItems : flashItems;
+
+          const priceRange = menu.length > 0
+            ? `RM ${Math.min(...menu.map((m) => m.price)).toFixed(0)}–${Math.max(...menu.map((m) => m.price)).toFixed(0)}`
+            : "—";
+
+          return {
+            id: v.id,
+            name: v.nama_perniagaan,
+            category: v.jenis_jualan ?? "General",
+            open: isOpen,
+            flash: !!flashInfo,
+            flashDiscount: flashInfo?.discount ?? null,
+            rating: 4.5,
+            reviews: 0,
+            crowd: "medium" as const,
+            price: flashInfo
+              ? `RM ${flashInfo.price.toFixed(2)} ⚡ (was RM ${(flashInfo.price / (1 - flashInfo.discount / 100)).toFixed(2)})`
+              : priceRange,
+            tags,
+            desc: `${v.nama_perniagaan} — ${v.jenis_jualan ?? "Local stall"}`,
+            emoji: categoryEmoji(v.jenis_jualan ?? ""),
+            wait: "~10 min",
+            menu,
+          };
+        });
+
+        setStalls(built);
+      } catch (e) {
+        console.error("Failed to load stalls:", e);
+        setStalls([]);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchStalls();
+
+    // Re-fetch when a flash sale is launched from another tab/vendor
+    const onFlash = () => fetchStalls();
+    window.addEventListener("pasar-smart-flash-sale", onFlash);
+    return () => window.removeEventListener("pasar-smart-flash-sale", onFlash);
+  }, []);
+
+  const filtered = stalls.filter((s) => {
     if (cat !== "All" && s.category !== cat) return false;
     if (openOnly && !s.open) return false;
     if (flashOnly && !s.flash) return false;
@@ -66,17 +210,17 @@ export default function DiscoverPage() {
     return true;
   });
 
-  function openPicker(stallId: number) {
+  function openPicker(stallId: string) {
     if (activeStall === stallId) {
       setActiveStall(null);
       setPickerQty({});
       return;
     }
     setActiveStall(stallId);
-    // Pre-fill with existing cart quantities for this stall
     const existing = getCart();
     const pre: Record<string, number> = {};
-    STALL_MENUS[stallId]?.forEach((item) => {
+    const stall = stalls.find((s) => s.id === stallId);
+    stall?.menu.forEach((item) => {
       const found = existing.find((c) => c.id === item.id);
       if (found) pre[item.id] = found.qty;
     });
@@ -84,32 +228,20 @@ export default function DiscoverPage() {
   }
 
   function changeQty(itemId: string, delta: number) {
-    setPickerQty((prev) => {
-      const next = Math.max(0, (prev[itemId] ?? 0) + delta);
-      return { ...prev, [itemId]: next };
-    });
+    setPickerQty((prev) => ({ ...prev, [itemId]: Math.max(0, (prev[itemId] ?? 0) + delta) }));
   }
 
-  function confirmAdd(stall: typeof STALLS[0]) {
-    const menu = STALL_MENUS[stall.id] ?? [];
+  function confirmAdd(stall: Stall) {
     let added = 0;
-    for (const item of menu) {
+    for (const item of stall.menu) {
       const qty = pickerQty[item.id] ?? 0;
-      if (qty > 0) {
+      const cartQty = getCart().find((c) => c.id === item.id)?.qty ?? 0;
+      if (qty !== cartQty) {
         upsertItem(
-          { id: item.id, name: item.name, price: item.price, emoji: item.emoji, vendor: stall.name, vendorEmoji: stall.emoji },
-          qty - (getCart().find((c) => c.id === item.id)?.qty ?? 0),
+          { id: item.id, name: item.name, price: item.price, emoji: item.emoji, vendor: stall.name, vendorId: stall.id, vendorEmoji: stall.emoji },
+          qty - cartQty,
         );
-        added += qty;
-      }
-    }
-    // also remove items set to 0
-    for (const item of menu) {
-      if ((pickerQty[item.id] ?? 0) === 0) {
-        upsertItem(
-          { id: item.id, name: item.name, price: item.price, emoji: item.emoji, vendor: stall.name, vendorEmoji: stall.emoji },
-          -(getCart().find((c) => c.id === item.id)?.qty ?? 0),
-        );
+        if (qty > 0) added += qty;
       }
     }
     const newCount = cartCount();
@@ -124,7 +256,7 @@ export default function DiscoverPage() {
 
   return (
     <div className="space-y-8 pb-10">
-      {/* Breadcrumb + cart badge row */}
+      {/* Breadcrumb + cart badge */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 text-sm text-[var(--muted)]">
           <Link href="/user" className="hover:text-[var(--text)]">Home</Link><span>/</span>
@@ -154,7 +286,12 @@ export default function DiscoverPage() {
         <p className="mt-1 text-sm text-[var(--muted)]">Trending stalls, flash deals, and AI-curated picks — updated in real-time</p>
         <div className="mx-auto mt-5 flex max-w-lg items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--abyss)] px-4 py-2.5">
           <span className="text-[var(--muted)]">🔍</span>
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search stalls, dishes, categories…" className="flex-1 bg-transparent text-sm text-[var(--text)] placeholder:text-[var(--muted)] focus:outline-none" />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search stalls, dishes, categories…"
+            className="flex-1 bg-transparent text-sm text-[var(--text)] placeholder:text-[var(--muted)] focus:outline-none"
+          />
         </div>
         <div className="mt-4 flex flex-wrap justify-center gap-2">
           <button onClick={() => setOpenOnly(!openOnly)} className={`rounded-full border px-3 py-1 text-xs font-semibold transition-all ${openOnly ? "border-emerald-400/60 bg-emerald-400/20 text-emerald-400" : "border-[var(--border)] text-[var(--muted)] hover:border-emerald-400/30"}`}>✓ Open Now</button>
@@ -173,46 +310,64 @@ export default function DiscoverPage() {
       <section>
         <div className="mb-3 flex items-center justify-between">
           <h2 className="font-semibold text-[var(--accent-strong)]">
-            {cat === "All" ? "All Stalls" : cat} <span className="text-sm font-normal text-[var(--muted)]">({filtered.length} found)</span>
+            {cat === "All" ? "All Stalls" : cat}{" "}
+            <span className="text-sm font-normal text-[var(--muted)]">
+              {loading ? "loading…" : `(${filtered.length} found)`}
+            </span>
           </h2>
         </div>
-        {filtered.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-[var(--border)] bg-[var(--lifted)] py-16 text-center text-sm text-[var(--muted)]">No stalls match your filters.</div>
+
+        {loading ? (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {[1, 2, 3].map((n) => (
+              <div key={n} className="h-48 animate-pulse rounded-2xl border border-[var(--border)] bg-[var(--lifted)]" />
+            ))}
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-[var(--border)] bg-[var(--lifted)] py-16 text-center text-sm text-[var(--muted)]">
+            {stalls.length === 0 ? "No vendors have registered yet. Check back soon!" : "No stalls match your filters."}
+          </div>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {filtered.map((s) => {
-              const isOpen = activeStall === s.id;
-              const menu = STALL_MENUS[s.id] ?? [];
+              const isPickerOpen = activeStall === s.id;
+              const menu = s.menu;
               const pickerTotal = menu.reduce((sum, item) => sum + (pickerQty[item.id] ?? 0), 0);
               return (
-                <div key={s.id} className={`flex flex-col rounded-2xl border bg-[var(--lifted)] transition-all hover:shadow-lg ${s.flash ? "border-amber-500/40 bg-amber-500/5" : isOpen ? "border-emerald-500/50" : "border-[var(--border)] hover:border-emerald-500/30"}`}>
+                <div key={s.id} className={`flex flex-col rounded-2xl border bg-[var(--lifted)] transition-all hover:shadow-lg ${s.flash ? "border-amber-500/40 bg-amber-500/5" : isPickerOpen ? "border-emerald-500/50" : "border-[var(--border)] hover:border-emerald-500/30"}`}>
                   <div className="p-5">
                     <div className="mb-3 flex items-start justify-between gap-2">
                       <span className="text-3xl">{s.emoji}</span>
                       <div className="flex flex-wrap gap-1">
                         {s.tags.map((t) => (
-                          <span key={t} className={`rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide ${t.includes("Flash") ? "bg-amber-400/20 text-amber-400" : t.includes("Trending") ? "bg-red-400/20 text-red-400" : t.includes("Top") ? "bg-yellow-400/20 text-yellow-400" : "bg-[var(--raised)] text-[var(--muted)]"}`}>{t}</span>
+                          <span key={t} className={`rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide ${t.includes("Flash") ? "bg-amber-400/20 text-amber-400" : t.includes("Open") ? "bg-emerald-400/20 text-emerald-400" : "bg-[var(--raised)] text-[var(--muted)]"}`}>{t}</span>
                         ))}
                       </div>
                     </div>
-                    <h3 className="font-semibold text-[var(--text)]">{s.name}</h3>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-semibold text-[var(--text)]">{s.name}</span>
+                      <span className={`rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-wider ${s.open ? "bg-emerald-500/15 text-emerald-300" : "bg-slate-600/20 text-slate-300"}`}>
+                        {s.open ? "OPEN NOW" : "CLOSED"}
+                      </span>
+                    </div>
                     <p className="mt-1 text-xs text-[var(--muted)]">{s.desc}</p>
                     <div className="mt-3 flex flex-wrap gap-2 text-xs">
                       <span className={`rounded-full px-2 py-0.5 font-semibold ${CROWD_COLOR[s.crowd]}`}>{CROWD_LABEL[s.crowd]}</span>
                       <span className="text-[var(--muted)]">⏱ {s.wait}</span>
                       <span className="text-[var(--muted)]">💰 {s.price}</span>
-                      <span className="text-amber-400">⭐ {s.rating} ({s.reviews})</span>
+                      {s.reviews > 0 && <span className="text-amber-400">⭐ {s.rating} ({s.reviews})</span>}
                     </div>
                     <button
                       onClick={() => openPicker(s.id)}
-                      className={`mt-4 w-full rounded-xl border py-2 text-center text-xs font-semibold transition-all ${isOpen ? "border-emerald-500/60 bg-emerald-500/15 text-emerald-400" : "border-[var(--border)] text-[var(--text)] hover:border-emerald-500/40 hover:bg-emerald-500/10 hover:text-emerald-400"}`}
+                      disabled={menu.length === 0}
+                      className={`mt-4 w-full rounded-xl border py-2 text-center text-xs font-semibold transition-all ${menu.length === 0 ? "cursor-not-allowed border-[var(--border)] opacity-40 text-[var(--muted)]" : isPickerOpen ? "border-emerald-500/60 bg-emerald-500/15 text-emerald-400" : "border-[var(--border)] text-[var(--text)] hover:border-emerald-500/40 hover:bg-emerald-500/10 hover:text-emerald-400"}`}
                     >
-                      {isOpen ? "▲ Close menu" : "+ Add to Cart"}
+                      {menu.length === 0 ? "Menu not available yet" : isPickerOpen ? "▲ Close menu" : "+ Add to Cart"}
                     </button>
                   </div>
 
                   {/* Inline item picker */}
-                  {isOpen && (
+                  {isPickerOpen && menu.length > 0 && (
                     <div className="border-t border-emerald-500/20 bg-[var(--abyss)]/40 px-5 pb-5 pt-4 space-y-3">
                       <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--muted)]">Select items</p>
                       {menu.map((item) => (

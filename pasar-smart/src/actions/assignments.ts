@@ -1,7 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { supabase } from "@/lib/supabaseClient";
+
+const db = supabaseAdmin ?? supabase;
 import { canTransitionAssignment } from "@/lib/status";
 import {
   assignmentCreateSchema,
@@ -36,7 +39,7 @@ export async function createAssignment(
   const tamat = parseOptionalDate(parsed.data.tarikhTamat);
 
   try {
-    await supabase.from("assignment").insert([
+    await db.from("assignment").insert([
       {
         vendor_id: parsed.data.vendorId,
         market_id: parsed.data.marketId,
@@ -71,7 +74,7 @@ export async function updateAssignment(
   const parsed = assignmentUpdateSchema.safeParse(raw);
   if (!parsed.success) return { error: formatZodError(parsed.error) };
 
-  const { data: existing } = await supabase
+  const { data: existing } = await db
     .from("assignment")
     .select("*")
     .eq("id", parsed.data.id)
@@ -88,7 +91,7 @@ export async function updateAssignment(
   const tamat = parseOptionalDate(parsed.data.tarikhTamat);
 
   try {
-    await supabase
+    await db
       .from("assignment")
       .update({
         vendor_id: parsed.data.vendorId,
@@ -111,7 +114,7 @@ export async function deleteAssignment(formData: FormData): Promise<void> {
   const id = String(formData.get("id") ?? "");
   if (!id) throw new Error("ID tidak sah");
   try {
-    await supabase.from("assignment").delete().eq("id", id);
+    await db.from("assignment").delete().eq("id", id);
   } catch (e) {
     throw new Error(e instanceof Error ? e.message : "Gagal memadam penugasan");
   }

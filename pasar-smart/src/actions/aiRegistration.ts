@@ -1,6 +1,7 @@
 "use server";
 
 import Groq from "groq-sdk";
+import { cookies } from "next/headers";
 import { supabase } from "@/lib/supabaseClient";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
@@ -207,57 +208,86 @@ export async function processVendorRegistrationChat(
   }
 }
 
-// ── Complete registration (write to Supabase) ─────────────────────────────────
+// ── Complete registration (update existing vendor record) ────────────────────
 export async function completeVendorRegistration(
   sessionId: string,
   collected: CollectedData,
 ): Promise<{ vendorId: string; mock?: boolean; error?: string }> {
-  const vendorId = `vendor-${Date.now()}`;
-
-  // If no DB client is available, return a mock success so the demo still works
   if (!db) {
     console.warn("completeVendorRegistration: no DB client — returning mock success");
-    return { vendorId, mock: true };
+    return { vendorId: "mock-vendor", mock: true };
   }
 
   try {
+    // Get the logged-in vendor's ID from cookies
+    const cookieStore = await cookies();
+    const vendorId = cookieStore.get("vendor-id")?.value;
+
+    if (!vendorId) {
+      return { vendorId: "", error: "Vendor session tidak dijumpai. Sila log masuk semula." };
+    }
+
+    // Update the existing vendor record with AI-collected data
     const { data, error } = await db
       .from("vendor")
-      .insert({
-        id:               vendorId,
-        nama_perniagaan:  collected.namaPerniagaan ?? "Unnamed",
-        nama_panggilan:   collected.namaPanggilan,
-        no_telefon:       collected.noTelefon,
-        email:            collected.email,
-        jenis_jualan:     collected.jenisJualan ?? "General",
-        status:           "DRAFT",
+      .update({
+        nama_perniagaan:  collected.namaPerniagaan ?? undefined,
+        nama_panggilan:   collected.namaPanggilan  ?? undefined,
+        no_telefon:       collected.noTelefon      ?? undefined,
+        email:            collected.email          ?? undefined,
+        jenis_jualan:     collected.jenisJualan    ?? undefined,
+        status:           "AKTIF",
         updated_at:       new Date().toISOString(),
       })
+      .eq("id", vendorId)
       .select()
       .single();
 
-    if (error) {
-      // RLS or permission error — fall back to mock so the UI flow completes
-      const isRls = error.message?.toLowerCase().includes("row-level security") ||
-                    error.message?.toLowerCase().includes("policy");
-      if (isRls) {
-        console.warn("completeVendorRegistration: RLS blocked insert — returning mock success. " +
-          "Fix: add SUPABASE_SERVICE_ROLE_KEY to .env.local");
-        return { vendorId, mock: true };
-      }
-      throw new Error(error.message);
+    if (error) throw new Error(error.message);
+    if (!data) throw new Error("Vendor record tidak ditemui.");
+
+    // Save menu items to vendor_menu table if provided
+    if (collected.menuItems && collected.menuItems.length > 0) {
+      // Remove old AI-generated menu items first (keep any manually added ones untouched by checking source)
+      await db
+        .from("vendor_menu")
+        .delete()
+        .eq("vendor_id", vendorId)
+        .eq("source", "ai_chat");
+
+      const menuRows = collected.menuItems.map((item, idx) => ({
+        id:           `menu-ai-${vendorId}-${idx}-${Date.now()}`,
+        vendor_id:    vendorId,
+        item_name:    item.name,
+        price:        item.price,
+        category:     collected.jenisJualan ?? "General",
+        is_available: true,
+        source:       "ai_chat",
+      }));
+
+      await db
+        .from("vendor_menu")
+        .insert(menuRows)
+        .then(({ error: e }) => { if (e) console.warn("vendor_menu insert:", e.message); });
     }
 
-    if (!data) throw new Error("No data returned after insert");
+    // Update profiles table with business name if available
+    if (collected.namaPerniagaan) {
+      await db
+        .from("profiles")
+        .update({ name: collected.namaPerniagaan })
+        .eq("vendor_id", vendorId)
+        .then(({ error: e }) => { if (e) console.warn("profiles update:", e.message); });
+    }
 
-    // Best-effort update on registration_state (non-fatal if it fails)
+    // Mark registration_state complete (non-fatal)
     await db
       .from("registration_state")
-      .update({ vendor_id: data.id, stage: "COMPLETE", is_completed: true, extracted_data: collected })
+      .update({ vendor_id: vendorId, stage: "COMPLETE", is_completed: true, extracted_data: collected })
       .eq("session_id", sessionId)
       .then(({ error: e }) => { if (e) console.warn("registration_state update:", e.message); });
 
-    return { vendorId: data.id };
+    return { vendorId };
   } catch (error) {
     console.error("completeVendorRegistration error:", error);
     return { vendorId: "", error: error instanceof Error ? error.message : "Registration failed" };

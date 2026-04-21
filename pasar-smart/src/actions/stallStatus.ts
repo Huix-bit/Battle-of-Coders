@@ -1,6 +1,9 @@
 "use server";
 
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { supabase } from "@/lib/supabaseClient";
+
+const db = supabaseAdmin ?? supabase;
 
 export type StallStatusType = "ACTIVE" | "BUSY" | "SOLDOUT" | "CLOSED";
 
@@ -25,24 +28,102 @@ interface ActiveStall {
   lastUpdated: string;
 }
 
+export async function ensureMarketExists(marketId: string) {
+  const { data, error } = await db
+    .from("market")
+    .select("id")
+    .eq("id", marketId)
+    .maybeSingle();
+
+  if (error) throw error;
+  if (data?.id) return;
+
+  const { error: insertError } = await db.from("market").insert({
+    id: marketId,
+    nama_pasar: "Demo Market",
+    daerah: "MELAKA_TENGAH",
+    alamat: null,
+    hari_operasi: null,
+    status: "DIRANCANG",
+  });
+
+  if (insertError) throw insertError;
+}
+
+async function ensureVendorExists(vendorId: string) {
+  const { data } = await db
+    .from("vendor")
+    .select("id")
+    .eq("id", vendorId)
+    .maybeSingle();
+
+  if (data?.id) return; // already exists
+
+  // Auto-create a minimal vendor row so FK constraints don't block the toggle
+  const { error } = await db.from("vendor").insert({
+    id: vendorId,
+    nama_perniagaan: "My Stall",
+    jenis_jualan: "Belum ditetapkan",
+    status: "AKTIF",
+  });
+
+  // Ignore conflict (another process may have inserted concurrently)
+  if (error && !error.message.includes("duplicate") && !error.message.includes("unique")) {
+    throw error;
+  }
+}
+
+async function ensureAssignmentId(vendorId: string, marketId: string) {
+  const { data, error } = await db
+    .from("assignment")
+    .select("id")
+    .eq("vendor_id", vendorId)
+    .eq("market_id", marketId)
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw error;
+  if (data?.id) return data.id;
+
+  // Ensure both FK targets exist before inserting the assignment
+  await ensureVendorExists(vendorId);
+  await ensureMarketExists(marketId);
+
+  const newId = `assign-${vendorId}-${marketId}`;
+  const { error: insertError } = await db.from("assignment").insert({
+    id: newId,
+    vendor_id: vendorId,
+    market_id: marketId,
+    tarikh_mula: new Date().toISOString(),
+    status: "DIJADUALKAN",
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  });
+
+  if (insertError) throw insertError;
+  return newId;
+}
+
 export async function toggleStallPresence(
   vendorId: string,
   marketId: string,
-  assignmentId: string,
+  _assignmentId: string,
   isPresent: boolean
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    const assignmentId = await ensureAssignmentId(vendorId, marketId);
+
     // Check if stall status exists
-    const { data: existing } = await supabase
+    const { data: existing } = await db
       .from("stall_status")
       .select("id")
       .eq("vendor_id", vendorId)
       .eq("market_id", marketId)
-      .single();
+      .maybeSingle();
 
     if (existing) {
       // Update existing
-      const { error } = await supabase
+      const { error } = await db
         .from("stall_status")
         .update({
           is_present: isPresent,
@@ -55,7 +136,7 @@ export async function toggleStallPresence(
       if (error) throw error;
     } else {
       // Create new
-      const { error } = await supabase.from("stall_status").insert({
+      const { error } = await db.from("stall_status").insert({
         id: `stall-${vendorId}-${marketId}-${Date.now()}`,
         vendor_id: vendorId,
         market_id: marketId,
@@ -84,7 +165,7 @@ export async function updateStallStatus(
   update: StallStatusUpdate
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const { error } = await supabase
+    const { error } = await db
       .from("stall_status")
       .update({
         ...update,
@@ -107,7 +188,7 @@ export async function updateStallStatus(
 
 export async function getActiveStalls(marketId?: string): Promise<ActiveStall[]> {
   try {
-    let query = supabase.from("active_stalls").select("*");
+    let query = db.from("active_stalls").select("*");
 
     if (marketId) {
       query = query.eq("market_id", marketId);
@@ -139,7 +220,7 @@ export async function getActiveStalls(marketId?: string): Promise<ActiveStall[]>
 
 export async function getVendorStallStatus(vendorId: string, marketId: string) {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from("stall_status")
       .select("*")
       .eq("vendor_id", vendorId)
@@ -162,7 +243,7 @@ export async function getNearbyStalls(
 ): Promise<ActiveStall[]> {
   try {
     // Simple distance calculation (in production, use PostGIS)
-    const { data, error } = await supabase.from("active_stalls").select("*");
+    const { data, error } = await db.from("active_stalls").select("*");
 
     if (error) throw error;
 
@@ -214,7 +295,7 @@ export async function updateStallLocation(
   longitude: number
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const { error } = await supabase
+    const { error } = await db
       .from("stall_status")
       .update({
         latitude,
@@ -243,7 +324,7 @@ export async function getStallAvailability(marketId: string): Promise<{
   availableStalls: number;
 }> {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from("active_stalls")
       .select("status")
       .eq("market_id", marketId);

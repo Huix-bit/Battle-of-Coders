@@ -4,6 +4,7 @@ export interface CartItem {
   price: number;
   qty: number;
   vendor: string;
+  vendorId?: string;
   vendorEmoji: string;
   emoji: string;
 }

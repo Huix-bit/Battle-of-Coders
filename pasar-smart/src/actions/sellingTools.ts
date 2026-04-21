@@ -1,6 +1,11 @@
 "use server";
 
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { supabase } from "@/lib/supabaseClient";
+
+// Use admin client in server actions so RLS doesn't block writes
+// (the anon client has no auth session in server-action context)
+const db = supabaseAdmin ?? supabase;
 
 // ============ FLASH SALES ============
 
@@ -11,21 +16,35 @@ export async function createFlashSale(
   originalPrice: number,
   discountPercentage: number,
   durationMinutes: number = 30,
-  quantity?: number
+  quantity?: number,
+  itemName?: string
 ): Promise<{ success: boolean; saleId?: string; error?: string }> {
   try {
+    if (originalPrice < 0) {
+      return { success: false, error: "Original price cannot be negative." };
+    }
+    if (discountPercentage <= 0 || discountPercentage > 100) {
+      return {
+        success: false,
+        error: "Discount percentage must be between 1 and 100.",
+      };
+    }
+    if (durationMinutes <= 0) {
+      return { success: false, error: "Duration must be a positive number." };
+    }
     const now = new Date();
     const endTime = new Date(now.getTime() + durationMinutes * 60000);
 
     const discountedPrice = originalPrice * (1 - discountPercentage / 100);
 
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from("flash_sale")
       .insert({
         id: `flash-${Date.now()}`,
         vendor_id: vendorId,
         market_id: marketId,
         item_id: itemId,
+        item_name: itemName?.trim() || null,
         original_price: originalPrice,
         discounted_price: discountedPrice,
         discount_percentage: discountPercentage,
@@ -51,7 +70,7 @@ export async function createFlashSale(
 
 export async function getActiveFlashSales(vendorId?: string): Promise<any[]> {
   try {
-    let query = supabase
+    let query = db
       .from("flash_sale")
       .select("*")
       .eq("is_active", true)
@@ -76,7 +95,7 @@ export async function endFlashSale(
   saleId: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const { error } = await supabase
+    const { error } = await db
       .from("flash_sale")
       .update({ is_active: false, end_time: new Date().toISOString() })
       .eq("id", saleId);
@@ -105,7 +124,7 @@ export async function createPasarDriveOrder(
       Date.now() + estimatedPickupMinutes * 60000
     );
 
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from("pasar_drive")
       .insert({
         id: `drive-${Date.now()}`,
@@ -141,7 +160,7 @@ export async function addItemToPasarDriveOrder(
   try {
     const subtotal = quantity * pricePerUnit;
 
-    const { data: orderItem, error: insertError } = await supabase
+    const { data: orderItem, error: insertError } = await db
       .from("pasar_drive_item")
       .insert({
         id: `drive-item-${Date.now()}`,
@@ -158,7 +177,7 @@ export async function addItemToPasarDriveOrder(
     if (insertError) throw insertError;
 
     // Update order total
-    const { data: items, error: fetchError } = await supabase
+    const { data: items, error: fetchError } = await db
       .from("pasar_drive_item")
       .select("subtotal")
       .eq("drive_id", driveId);
@@ -167,7 +186,7 @@ export async function addItemToPasarDriveOrder(
 
     const totalAmount = items?.reduce((sum, item) => sum + item.subtotal, 0) || 0;
 
-    const { error: updateError } = await supabase
+    const { error: updateError } = await db
       .from("pasar_drive")
       .update({ total_amount: totalAmount })
       .eq("id", driveId);
@@ -186,7 +205,7 @@ export async function addItemToPasarDriveOrder(
 
 export async function getPasarDriveOrder(driveId: string): Promise<any> {
   try {
-    const { data: order, error: orderError } = await supabase
+    const { data: order, error: orderError } = await db
       .from("pasar_drive")
       .select("*")
       .eq("id", driveId)
@@ -194,7 +213,7 @@ export async function getPasarDriveOrder(driveId: string): Promise<any> {
 
     if (orderError) throw orderError;
 
-    const { data: items, error: itemsError } = await supabase
+    const { data: items, error: itemsError } = await db
       .from("pasar_drive_item")
       .select("*, vendor:vendor_id(nama_perniagaan)")
       .eq("drive_id", driveId);
@@ -208,11 +227,47 @@ export async function getPasarDriveOrder(driveId: string): Promise<any> {
   }
 }
 
+export async function getIncomingPasarDriveOrders(
+  vendorId: string
+): Promise<any[]> {
+  try {
+    const { data, error } = await db
+      .from("pasar_drive_item")
+      .select(`
+        id,
+        quantity,
+        price_per_unit,
+        subtotal,
+        item_id,
+        pasar_drive (
+          id,
+          customer_id,
+          order_time,
+          estimated_pickup_time,
+          status,
+          total_amount,
+          payment_status
+        )
+      `)
+      .eq("vendor_id", vendorId)
+      .neq("pasar_drive.status", "COMPLETED")
+      .neq("pasar_drive.status", "CANCELLED")
+      .order("pasar_drive.order_time", { ascending: false });
+
+    if (error) throw error;
+
+    return data || [];
+  } catch (error) {
+    console.error("Error fetching incoming Pasar Drive orders:", error);
+    return [];
+  }
+}
+
 export async function confirmPasarDriveOrder(
   driveId: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const { error } = await supabase
+    const { error } = await db
       .from("pasar_drive")
       .update({ status: "CONFIRMED", payment_status: "PAID" })
       .eq("id", driveId);
@@ -233,7 +288,7 @@ export async function completePasarDriveOrder(
   driveId: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const { error } = await supabase
+    const { error } = await db
       .from("pasar_drive")
       .update({ status: "COMPLETED" })
       .eq("id", driveId);
@@ -259,7 +314,7 @@ export async function requestSmallChange(
   nearbyVendorIds: string[] = []
 ): Promise<{ success: boolean; requestId?: string; error?: string }> {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from("duit_pecah")
       .insert({
         id: `change-${Date.now()}`,
@@ -289,7 +344,7 @@ export async function acceptSmallChangeRequest(
   providerVendorId: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const { error } = await supabase
+    const { error } = await db
       .from("duit_pecah")
       .update({
         provider_vendor_id: providerVendorId,
@@ -313,7 +368,7 @@ export async function completeSmallChangeTransaction(
   requestId: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const { error } = await supabase
+    const { error } = await db
       .from("duit_pecah")
       .update({
         status: "COMPLETED",
@@ -337,7 +392,7 @@ export async function getPendingSmallChangeRequests(
   marketId: string
 ): Promise<any[]> {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from("duit_pecah")
       .select("*")
       .eq("market_id", marketId)
@@ -365,6 +420,18 @@ export async function recordSale(
   }>
 ): Promise<{ success: boolean; saleId?: string; error?: string }> {
   try {
+    if (!items || items.length === 0) {
+      return { success: false, error: "No items provided for the sale." };
+    }
+
+    for (const item of items) {
+      if (item.quantity <= 0) {
+        return { success: false, error: "Item quantity must be a positive number." };
+      }
+      if (item.pricePerUnit < 0) {
+        return { success: false, error: "Item price cannot be negative." };
+      }
+    }
     const sale = {
       id: `sale-${Date.now()}`,
       vendor_id: vendorId,
@@ -379,7 +446,7 @@ export async function recordSale(
       sale_time: new Date().toISOString(),
     };
 
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from("sale")
       .insert(sale)
       .select()

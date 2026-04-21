@@ -42,7 +42,7 @@ export interface MockVendor {
 }
 
 export const MOCK_VENDORS: MockVendor[] = [
-  { id: "v1", namaPerniagaan: "Mee Goreng Mamak Haji Ali",  namaPanggilan: "Haji Ali",  noTelefon: "012-3456789", email: null,                    jenisJualan: "Noodles & rice", yuranHarianSen: 1500, status: "AKTIF"   },
+  { id: "demo-vendor-1", namaPerniagaan: "Mee Goreng Mamak Haji Ali",  namaPanggilan: "Haji Ali",  noTelefon: "012-3456789", email: null,                    jenisJualan: "Noodles & rice", yuranHarianSen: 1500, status: "AKTIF"   },
   { id: "v2", namaPerniagaan: "Ayam Percik Siti",            namaPanggilan: "Kak Siti",  noTelefon: "017-8901234", email: "siti@email.com",         jenisJualan: "Grilled chicken",yuranHarianSen: 1200, status: "AKTIF"   },
   { id: "v3", namaPerniagaan: "Kuih Muih Puan Ros",          namaPanggilan: "Puan Ros",  noTelefon: null,          email: null,                    jenisJualan: "Traditional cakes",yuranHarianSen: 800, status: "AKTIF"  },
   { id: "v4", namaPerniagaan: "Air Balang Rahman",            namaPanggilan: "Man",       noTelefon: "011-2345678", email: null,                    jenisJualan: "Drinks",         yuranHarianSen: 600,  status: "AKTIF"   },
